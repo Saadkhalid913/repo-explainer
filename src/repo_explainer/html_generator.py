@@ -82,7 +82,14 @@ class HTMLGenerator:
 
             commits_html = ""
             if commits:
-                commits_html = f'<span class="update-commits">Commits: {", ".join(commits[:3])}</span>'
+                # Handle both string commits and dict commits
+                commit_strs = []
+                for c in commits[:3]:
+                    if isinstance(c, dict):
+                        commit_strs.append(c.get("sha", c.get("short_sha", str(c)))[:8])
+                    else:
+                        commit_strs.append(str(c)[:8])
+                commits_html = f'<span class="update-commits">Commits: {", ".join(commit_strs)}</span>'
 
             return f'''
             <div class="{banner_class}" id="update-banner">
