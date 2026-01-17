@@ -165,7 +165,8 @@ class MultiRepoDocComposer:
 """
         # Add all actual services as nodes
         for meta in self.repo_metadata:
-            lang = self._service_info.get(meta.name, {}).get("language", "Unknown")
+            lang = self._service_info.get(
+                meta.name, {}).get("language", "Unknown")
             safe_name = meta.name.replace("-", "_").replace(".", "_")
             diagram += f'        {safe_name}["{meta.name}<br/>{lang}"]\n'
 
@@ -177,7 +178,8 @@ class MultiRepoDocComposer:
             edge_type = edge.get("type", "http")
             key = f"{source}->{target}"
             if key not in edge_labels:
-                edge_labels[key] = {"source": source, "target": target, "types": []}
+                edge_labels[key] = {"source": source,
+                                    "target": target, "types": []}
             edge_labels[key]["types"].append(edge_type)
 
         for key, data in edge_labels.items():
@@ -242,10 +244,11 @@ class MultiRepoDocComposer:
     classDef infrastructure fill:#e1ffe1,stroke:#388e3c
 """
         for layer, style in [("presentation", "presentation"), ("business", "business"),
-                            ("integration", "integration"), ("infrastructure", "infrastructure")]:
+                             ("integration", "integration"), ("infrastructure", "infrastructure")]:
             services = layers.get(layer, [])
             if services:
-                safe_names = [s.replace("-", "_").replace(".", "_") for s in services]
+                safe_names = [s.replace("-", "_").replace(".", "_")
+                              for s in services]
                 diagram += f"    class {','.join(safe_names)} {style}\n"
 
         return diagram
@@ -450,28 +453,32 @@ This diagram shows all services within the system boundary, their technologies, 
         if layers["presentation"]:
             content += "### Presentation Layer\n\n"
             for svc in layers["presentation"]:
-                lang = self._service_info.get(svc, {}).get("language", "Unknown")
+                lang = self._service_info.get(
+                    svc, {}).get("language", "Unknown")
                 content += f"- **{svc}** ({lang})\n"
             content += "\n"
 
         if layers["business"]:
             content += "### Business Logic Layer\n\n"
             for svc in layers["business"]:
-                lang = self._service_info.get(svc, {}).get("language", "Unknown")
+                lang = self._service_info.get(
+                    svc, {}).get("language", "Unknown")
                 content += f"- **{svc}** ({lang})\n"
             content += "\n"
 
         if layers["integration"]:
             content += "### Integration Layer\n\n"
             for svc in layers["integration"]:
-                lang = self._service_info.get(svc, {}).get("language", "Unknown")
+                lang = self._service_info.get(
+                    svc, {}).get("language", "Unknown")
                 content += f"- **{svc}** ({lang})\n"
             content += "\n"
 
         if layers["infrastructure"]:
             content += "### Infrastructure Layer\n\n"
             for svc in layers["infrastructure"]:
-                lang = self._service_info.get(svc, {}).get("language", "Unknown")
+                lang = self._service_info.get(
+                    svc, {}).get("language", "Unknown")
                 content += f"- **{svc}** ({lang})\n"
             content += "\n"
 
@@ -517,7 +524,8 @@ This diagram shows services organized by architectural layer with their dependen
         if not http_edges and not event_edges:
             content += "*No inter-service communication detected.*\n"
 
-        file_path = self.output_dir / "system" / "components" / "component-relationships.md"
+        file_path = self.output_dir / "system" / \
+            "components" / "component-relationships.md"
         file_path.write_text(content)
         return file_path
 
@@ -966,7 +974,8 @@ External packages used by multiple services.
 
 """
         for meta in self.repo_metadata:
-            lang = self._service_info.get(meta.name, {}).get("language", "Unknown")
+            lang = self._service_info.get(
+                meta.name, {}).get("language", "Unknown")
             content += f"### {meta.name}\n\n"
             content += f"- **Language:** {lang}\n"
             if meta.url:
@@ -1016,7 +1025,8 @@ This documentation describes a distributed system with {len(self.repo_metadata)}
 
 """
         for meta in self.repo_metadata:
-            lang = self._service_info.get(meta.name, {}).get("language", "Unknown")
+            lang = self._service_info.get(
+                meta.name, {}).get("language", "Unknown")
             content += f"- [{meta.name}](services/{meta.name}/index.md) ({lang})\n"
 
         content += """
