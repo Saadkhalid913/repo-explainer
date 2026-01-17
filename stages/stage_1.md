@@ -100,10 +100,14 @@
 - [ ] `.mmd` file writers
 
 ### Output Manager
-- [ ] Directory structure creation
-- [ ] Metadata/log persistence
+- [x] Directory structure creation
+- [x] Metadata/log persistence (JSON format with timestamp)
+- [x] Analysis summary generation (Markdown)
+- [x] Raw output saving
+- [x] Structured JSON output parsing
+- [x] OpenCode session ID recording
 - [ ] Config tracking
-- [ ] OpenCode session manifest recording
+- [ ] Diagram/artifact file organization
 
 ### Claude Code Fallback
 - [ ] Claude Code CLI integration

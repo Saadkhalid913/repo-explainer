@@ -47,6 +47,23 @@ repo-explain analyze git@github.com:myorg/private-repo.git
 repo-explain analyze https://github.com/facebook/react --force-clone
 ```
 
+**Where are results saved?**
+
+Analysis results are saved to `./docs/` by default:
+```
+docs/
+├── ANALYSIS_SUMMARY.md          # Quick overview
+├── analysis_quick.json           # Structured output
+└── logs/
+    ├── analysis_20260117.txt     # Raw OpenCode output
+    └── metadata_20260117.json    # Session metadata
+```
+
+You can specify a custom output directory:
+```bash
+repo-explain analyze ./my-project --output ./my-analysis
+```
+
 ## Usage Examples
 
 ### Local Repositories

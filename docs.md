@@ -97,12 +97,21 @@ repo-explain analyze [REPO_PATH_OR_URL] [OPTIONS]
 - `--help`: Show command help
 
 **Returns:**
-- Generated artifacts stored in output directory:
-  - `architecture.md` - Architecture overview
-  - `components.mermaid` - Component diagram
-  - `dataflow.mermaid` - Data flow diagram
-  - `tech-stack.txt` - Technology stack summary
-  - `logs/` - Execution logs
+Generated files in the output directory (default: `./docs/`):
+
+**Core Files:**
+- `ANALYSIS_SUMMARY.md` - Quick overview of the analysis
+- `analysis_{depth}.json` - Structured JSON output (parsed OpenCode events)
+
+**Logs Directory:**
+- `logs/analysis_{timestamp}.txt` - Raw OpenCode output
+- `logs/metadata_{timestamp}.json` - Analysis metadata (session ID, timestamp, etc.)
+
+**Future (Coming Soon):**
+- `architecture.md` - Architecture overview
+- `components.mermaid` - Component diagram
+- `dataflow.mermaid` - Data flow diagram
+- `tech-stack.txt` - Technology stack summary
 
 **Examples:**
 
