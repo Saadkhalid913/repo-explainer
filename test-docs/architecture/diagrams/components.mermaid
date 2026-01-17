@@ -1,0 +1,33 @@
+graph TD
+    %% Core Components
+    CLI["CLI (Typer)"] --> Orch[Orchestrator]
+    
+    subgraph Core Logic
+        Orch --> Config[Config Manager]
+        Orch --> Models[Data Models]
+    end
+
+    subgraph Pipeline Stages
+        Orch --> Loader[Repository Loader]
+        Orch --> Analyzer[Code Analyzer]
+        Orch --> AI[AI Runners / LLM Service]
+        Orch --> DocGen[Documentation Generator]
+        Orch --> DiagGen[Diagram Generator]
+    end
+
+    subgraph OutputLayer[Output]
+        DocGen --> OutputMgr[Output Manager]
+        DiagGen --> OutputMgr
+    end
+
+    %% External Dependencies
+    Loader --> Git[GitPython]
+    Analyzer --> Tree[Tree-sitter]
+    AI --> OpenCode[OpenCode Agent]
+    AI --> API[LLM APIs]
+
+    %% Relationships
+    Loader -- Source Files --> Analyzer
+    Analyzer -- Component Graph --> AI
+    AI -- Insights/Mermaid --> DocGen
+    AI -- Insights/Mermaid --> DiagGen

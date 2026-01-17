@@ -1,0 +1,39 @@
+{
+  "analysis_timestamp": "2026-01-17T11:30:18.386347",
+  "repo_explainer_version": "0.1.0",
+  "repository": {
+    "name": "repo-explainer-xz_uzevw",
+    "path": "/var/folders/7z/cn83yhqs1kgcb548ypy396fh0000gn/T/repo-explainer-xz_uzevw",
+    "primary_language": "javascript",
+    "languages": [
+      "python",
+      "javascript",
+      "typescript"
+    ],
+    "size_category": "very_large",
+    "file_count": 20309,
+    "total_lines": 1888664,
+    "git_remote": "https://github.com/nodejs/node.git",
+    "git_branch": "main",
+    "git_commit": "8365edcb"
+  },
+  "configuration": {
+    "depth": "quick",
+    "llm_model": "google/gemini-2.5-flash-preview",
+    "opencode_binary": "opencode",
+    "use_claude_fallback": false
+  },
+  "sessions": [
+    {
+      "session_id": "41c823de",
+      "command": "project:quick-scan",
+      "started_at": "2026-01-17T11:28:20.575947",
+      "ended_at": "2026-01-17T11:30:18.382012",
+      "exit_code": 0,
+      "output_files": [
+        "nodeexplain/analysis_41c823de.md"
+      ]
+    }
+  ],
+  "errors": []
+}

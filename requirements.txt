@@ -1,0 +1,25 @@
+# Core CLI & utilities
+typer[all]>=0.12.0
+rich>=13.7.0
+pydantic>=2.5.0
+pydantic-settings>=2.1.0
+PyYAML>=6.0.1
+
+# Git operations
+GitPython>=3.1.40
+
+# Code parsing
+tree-sitter>=0.21.0
+tree-sitter-python>=0.21.0
+tree-sitter-javascript>=0.21.0
+tree-sitter-typescript>=0.21.0
+
+# HTTP & LLM
+httpx>=0.27.0
+tenacity>=8.2.0
+
+# Type checking & dev
+mypy>=1.8.0
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
+ruff>=0.2.0
