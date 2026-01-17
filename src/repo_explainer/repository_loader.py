@@ -367,27 +367,16 @@ class RepositoryLoader:
                     console.print(f"[yellow]Warning: Could not iterate commits on {target_ref}: {e}[/yellow]")
                     return []
 
-            # Filter out deleted files and non-code files
-            # Check if files exist in the TARGET BRANCH, not locally
-            # (user might be on a different branch)
-            existing_files = []
+            # Filter out non-code files but keep all changed files
+            # (including deleted files - they're still relevant changes)
+            filtered_files = []
             for f in changed_files:
-                # Skip common non-code files
+                # Skip common non-code/generated files
                 if any(f.endswith(ext) for ext in ['.pyc', '.pyo', '.lock', '.log']):
                     continue
-                
-                # Check if file exists in the target branch using git ls-tree
-                try:
-                    result = repo.git.ls_tree('--name-only', target_ref, f)
-                    if result.strip():  # File exists in target branch
-                        existing_files.append(f)
-                except Exception:
-                    # If git check fails, fall back to local check
-                    file_path = repo_path / f
-                    if file_path.exists() and file_path.is_file():
-                        existing_files.append(f)
+                filtered_files.append(f)
 
-            return sorted(existing_files)
+            return sorted(filtered_files)
         except InvalidGitRepositoryError:
             console.print(f"[yellow]Warning: {repo_path} is not a git repository[/yellow]")
             return []

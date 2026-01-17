@@ -43,6 +43,7 @@ def extract_text_from_opencode_output(output: str) -> str:
 
     OpenCode returns newline-delimited JSON events. Text responses are in
     events with type="text" and the content is in part.text.
+    Also check for "assistant" type messages with content field.
 
     Args:
         output: Raw output from OpenCode (newline-delimited JSON)
@@ -55,11 +56,33 @@ def extract_text_from_opencode_output(output: str) -> str:
         if not line.strip():
             continue
         event = parse_opencode_event(line.strip())
-        if event and event.get("type") == "text":
+        if not event:
+            continue
+            
+        event_type = event.get("type", "")
+        
+        # Handle "text" type events
+        if event_type == "text":
             part = event.get("part", {})
             text = part.get("text", "")
             if text:
                 text_parts.append(text)
+        
+        # Handle "assistant" or "message" type events
+        elif event_type in ("assistant", "message"):
+            content = event.get("content", event.get("part", {}).get("content", ""))
+            if content:
+                text_parts.append(content)
+        
+        # Check for text/content in nested structures
+        part = event.get("part", {})
+        if isinstance(part, dict):
+            # Check for content in assistant messages
+            if part.get("type") == "text" and "text" not in [p.get("type") for p in [part]]:
+                text = part.get("text", "")
+                if text and text not in text_parts:
+                    text_parts.append(text)
+    
     return "".join(text_parts)
 
 
@@ -309,37 +332,88 @@ class OpenCodeService:
             event_callback: Optional callback for OpenCode events
 
         Returns:
-            Dictionary with commit summary information
+            Dictionary with commit summary information (never raises exceptions)
         """
-        from .prompts import get_commit_summary_prompt
+        try:
+            from .prompts import get_commit_summary_prompt
 
-        prompt = get_commit_summary_prompt(commit_info, diff_content)
+            prompt = get_commit_summary_prompt(commit_info, diff_content)
 
-        result = self.run_command(
-            prompt=prompt,
-            event_callback=event_callback
-        )
+            result = self.run_command(
+                prompt=prompt,
+                event_callback=event_callback
+            )
+        except Exception as e:
+            return {
+                "summary": f"Commit: {commit_info.get('message', 'Unknown')}",
+                "category": "unknown",
+                "impact_level": "low",
+                "breaking_changes": False,
+                "details": f"Failed to run OpenCode: {str(e)}"
+            }
 
         if result.success:
             try:
-                # Extract text content from streaming JSON events
-                text_content = extract_text_from_opencode_output(result.output)
+                # Try to extract and parse JSON from the response
+                # First try streaming JSON events, then fall back to raw output
+                sources_to_try = [
+                    extract_text_from_opencode_output(result.output),
+                    result.output  # Fallback to raw output
+                ]
                 
-                # The AI response should contain a JSON block - extract it
-                # Look for JSON object in the text (handles markdown code blocks too)
-                json_match = re.search(r'\{[^{}]*"summary"[^{}]*\}', text_content, re.DOTALL)
-                if json_match:
-                    return json.loads(json_match.group())
+                for text_content in sources_to_try:
+                    if not text_content or not text_content.strip():
+                        continue
+                        
+                    # Strategy 1: Find JSON in markdown code block
+                    try:
+                        code_block_match = re.search(r'```(?:json)?\s*(\{.*?\})\s*```', text_content, re.DOTALL)
+                        if code_block_match:
+                            return json.loads(code_block_match.group(1))
+                    except (json.JSONDecodeError, AttributeError):
+                        pass
+                    
+                    # Strategy 2: Find a complete JSON object by matching braces
+                    try:
+                        start_idx = text_content.find('{"summary"')
+                        if start_idx == -1:
+                            start_idx = text_content.find('{')
+                        
+                        if start_idx != -1:
+                            depth = 0
+                            for i, char in enumerate(text_content[start_idx:]):
+                                if char == '{':
+                                    depth += 1
+                                elif char == '}':
+                                    depth -= 1
+                                    if depth == 0:
+                                        json_str = text_content[start_idx:start_idx + i + 1]
+                                        return json.loads(json_str)
+                    except (json.JSONDecodeError, AttributeError, IndexError):
+                        pass
+                    
+                    # Strategy 3: Try parsing the whole text as JSON
+                    try:
+                        return json.loads(text_content.strip())
+                    except (json.JSONDecodeError, AttributeError):
+                        pass
                 
-                # Try parsing the whole text as JSON
-                return json.loads(text_content)
-            except (json.JSONDecodeError, AttributeError):
+                # All strategies failed - return a summary based on commit message
                 return {
-                    "summary": "Summary generation failed - invalid JSON response",
+                    "summary": f"Commit: {commit_info.get('message', 'No message')}",
                     "category": "unknown",
-                    "impact_level": "unknown",
+                    "impact_level": "low",
                     "breaking_changes": False,
-                    "details": text_content if 'text_content' in dir() else result.output
+                    "details": "Auto-generated from commit message"
+                }
+            except Exception as e:
+                # Catch-all for any unexpected errors
+                return {
+                    "summary": f"Commit: {commit_info.get('message', 'No message')}",
+                    "category": "unknown",
+                    "impact_level": "low", 
+                    "breaking_changes": False,
+                    "details": f"Summary generation error: {str(e)}"
                 }
         else:
             return {
