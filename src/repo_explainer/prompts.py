@@ -56,6 +56,8 @@ def get_prompt_metadata() -> Dict[str, str]:
         "architecture_deep_dive": "Comprehensive architectural analysis with function-level details",
         "pattern_detection": "Identify architectural and design patterns with evidence",
         "dependency_mapping": "Build internal and external dependency graphs",
+        "large_system_analysis": "Comprehensive analysis for large monorepos like Kubernetes, Linux, etc.",
+        "extra_deep_analysis": "Exhaustive documentation with per-component, per-interaction, and per-API pages",
     }
 
 
@@ -189,3 +191,13 @@ def get_pattern_detection_prompt() -> str:
 def get_dependency_mapping_prompt() -> str:
     """Get the dependency mapping prompt."""
     return load_prompt("dependency_mapping")
+
+
+def get_large_system_prompt() -> str:
+    """Get the large system analysis prompt for complex monorepos."""
+    return load_prompt("large_system_analysis")
+
+
+def get_extra_deep_prompt() -> str:
+    """Get the extra deep analysis prompt for exhaustive documentation."""
+    return load_prompt("extra_deep_analysis")

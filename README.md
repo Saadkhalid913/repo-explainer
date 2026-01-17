@@ -25,14 +25,27 @@ AI-powered repository documentation generator using OpenCode. Analyze **any** re
 git clone https://github.com/yourusername/repo-explainer.git
 cd repo-explainer
 
+# Create and activate virtual environment
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+
 # Install dependencies
 pip install -e .
+
+# Or install from requirements.txt
+pip install -r requirements.txt
 ```
 
 **Prerequisites:**
 - Python 3.9+
 - [OpenCode CLI](https://docs.opencode.ai) installed and in PATH
 - [Mermaid CLI](https://github.com/mermaid-js/mermaid-cli) (optional, for diagram rendering): `npm install -g @mermaid-js/mermaid-cli`
+
+**Note**: Always activate the virtual environment before running commands:
+```bash
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
+repo-explain analyze ./my-project
+```
 
 ### Basic Usage
 

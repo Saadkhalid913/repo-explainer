@@ -43,16 +43,23 @@ def main(
 @app.command()
 def analyze(
     repo_path_or_url: Annotated[
-        str,
+        Optional[str],
         typer.Argument(
             help="Path to repository or Git URL (e.g., https://github.com/user/repo)",
         ),
-    ] = ".",
+    ] = None,
+    repos: Annotated[
+        Optional[list[str]],
+        typer.Option(
+            "--file", "-f",
+            help="Repository path or URL (can be specified multiple times for multi-repo analysis)",
+        ),
+    ] = None,
     depth: Annotated[
         str,
         typer.Option(
             "--depth", "-d",
-            help="Analysis depth: quick, standard, or deep",
+            help="Analysis depth: quick, standard, deep, or extra-deep",
         ),
     ] = "standard",
     output: Annotated[
@@ -75,21 +82,23 @@ def analyze(
     ] = False,
 ) -> None:
     """
-    Analyze a repository and generate documentation.
+    Analyze one or more repositories and generate documentation.
 
-    Accepts either a local path or a Git URL. Git URLs will be cloned to ./tmp/owner/repo.
-
-    Examples:
+    Single repository mode (backward compatible):
         repo-explain analyze .
         repo-explain analyze ./my-project
         repo-explain analyze https://github.com/torvalds/linux
-        repo-explain analyze git@github.com:user/repo.git
+
+    Multi-repository mode (microservices):
+        repo-explain analyze -f repo1 -f repo2 -f repo3
+        repo-explain analyze -f https://github.com/user/service1 -f https://github.com/user/service2
 
     Invokes OpenCode to perform AI-powered analysis and produces:
     - Architecture overview (architecture.md)
     - Component diagrams (Mermaid format)
     - Data flow diagrams (Mermaid format)
     - Technology stack summary
+    - Multi-repo: System-wide views, service mesh, cross-service dependencies
     """
     # Update settings based on CLI options
     settings = get_settings()
@@ -97,6 +106,25 @@ def analyze(
         settings.verbose = True
     if output:
         settings.output_dir = output
+
+    # Determine mode: multi-repo or single-repo
+    if repos:
+        # Multi-repo mode
+        from .multi_repo_orchestrator import MultiRepoOrchestrator
+
+        orchestrator = MultiRepoOrchestrator(
+            repos=repos,
+            depth=depth,
+            output_dir=settings.output_dir,
+            force_clone=force_clone,
+            verbose=verbose,
+        )
+        orchestrator.run()
+        return
+
+    # Single-repo mode (backward compatible)
+    if repo_path_or_url is None:
+        repo_path_or_url = "."
 
     # Load repository (clone if it's a Git URL)
     loader = RepositoryLoader()
@@ -189,11 +217,30 @@ def analyze(
                 if pattern:
                     console.print(f"  [dim]🔍 Searching:[/dim] {pattern}")
 
+    # Validate depth option
+    valid_depths = ["quick", "standard", "deep", "extra-deep"]
+    if depth not in valid_depths:
+        console.print(f"[red]Error:[/red] Invalid depth '{depth}'. Must be one of: {', '.join(valid_depths)}")
+        raise typer.Exit(1)
+
+    # Determine which analysis method to use
+    use_extra_deep = depth == "extra-deep"
+    use_large_system = depth == "deep" or (opencode.is_large_repo(threshold=500) and depth == "standard")
+
+    if use_extra_deep:
+        console.print("[dim]📚 Extra-deep mode: Generating exhaustive per-component documentation...[/dim]\n")
+    elif use_large_system and depth != "quick":
+        console.print("[dim]📊 Detected large repository - using comprehensive analysis mode...[/dim]\n")
+
     # Run analysis with streaming if verbose
     if verbose:
         console.print("[dim]Verbose mode: Showing OpenCode activity...[/dim]\n")
         if depth == "quick":
             result = opencode.quick_scan(event_callback=handle_opencode_event)
+        elif use_extra_deep:
+            result = opencode.analyze_extra_deep(event_callback=handle_opencode_event)
+        elif use_large_system:
+            result = opencode.analyze_large_system(event_callback=handle_opencode_event)
         else:
             result = opencode.analyze_architecture(event_callback=handle_opencode_event)
     else:
@@ -202,10 +249,20 @@ def analyze(
             TextColumn("[progress.description]{task.description}"),
             console=console,
         ) as progress:
-            task = progress.add_task(f"Analyzing repository ({depth} mode)...", total=None)
+            if use_extra_deep:
+                analysis_type = "extra-deep (exhaustive)"
+            elif use_large_system:
+                analysis_type = "comprehensive"
+            else:
+                analysis_type = depth
+            task = progress.add_task(f"Analyzing repository ({analysis_type} mode)...", total=None)
 
             if depth == "quick":
                 result = opencode.quick_scan()
+            elif use_extra_deep:
+                result = opencode.analyze_extra_deep()
+            elif use_large_system:
+                result = opencode.analyze_large_system()
             else:
                 result = opencode.analyze_architecture()
 

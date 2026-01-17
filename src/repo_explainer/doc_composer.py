@@ -2,12 +2,13 @@
 
 import json
 import re
-import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from rich.console import Console
+
+from .diagram_renderer import DiagramRenderer
 
 console = Console()
 
@@ -28,6 +29,7 @@ class DocComposer:
         self.src_dir = output_dir / "src"
         self.raw_dir = output_dir / "src" / "raw"
         self.diagrams_dir = output_dir / "diagrams"
+        self._diagram_renderer = DiagramRenderer(opencode_cwd=self.raw_dir)
 
     def compose(
         self,
@@ -51,7 +53,8 @@ class DocComposer:
         if timestamp is None:
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
 
-        console.print("\n[bold cyan]📚 Composing coherent documentation...[/bold cyan]")
+        console.print(
+            "\n[bold cyan]📚 Composing coherent documentation...[/bold cyan]")
 
         # Ensure diagrams directory exists
         self.diagrams_dir.mkdir(parents=True, exist_ok=True)
@@ -66,7 +69,8 @@ class DocComposer:
         components_data = self._parse_components_data()
 
         # 3. Generate detailed component files
-        component_files = self._generate_component_files(components_data, diagram_files)
+        component_files = self._generate_component_files(
+            components_data, diagram_files)
         composed_files.update(component_files)
 
         # 4. Generate dependencies documentation
@@ -102,10 +106,10 @@ class DocComposer:
 
     def _render_diagrams(self) -> dict[str, Path]:
         """
-        Render Mermaid diagrams to SVG format.
+        Render Mermaid diagrams to PNG format using DiagramRenderer.
 
         Returns:
-            Dictionary mapping diagram names to SVG file paths (or .mermaid paths if rendering failed)
+            Dictionary mapping diagram names to PNG file paths (or .mermaid paths if rendering failed)
         """
         diagram_files = {}
 
@@ -116,148 +120,22 @@ class DocComposer:
             console.print("[dim]  No Mermaid diagrams to render[/dim]")
             return diagram_files
 
-        console.print(f"[dim]  Rendering {len(mermaid_files)} diagram(s)...[/dim]")
+        # Use the centralized diagram renderer to render to PNG
+        rendered = self._diagram_renderer.render_all_in_directory(
+            self.raw_dir, self.diagrams_dir, auto_fix=True
+        )
 
-        success_count = 0
-        failed_count = 0
+        # Add rendered diagrams
+        diagram_files.update(rendered)
 
+        # Track any failed diagrams (files not in rendered dict)
         for mermaid_file in mermaid_files:
-            svg_file = self.diagrams_dir / f"{mermaid_file.stem}.svg"
-
-            # Retry loop: try rendering up to 3 times with auto-fix
-            max_retries = 2
-            rendered = False
-
-            for attempt in range(max_retries + 1):
-                try:
-                    # Use Mermaid CLI (mmdc) to render
-                    result = subprocess.run(
-                        ["mmdc", "-i", str(mermaid_file), "-o", str(svg_file)],
-                        capture_output=True,
-                        text=True,
-                        timeout=30,
-                    )
-
-                    if result.returncode == 0:
-                        diagram_files[mermaid_file.stem] = svg_file
-                        success_count += 1
-                        if attempt > 0:
-                            console.print(f"[dim]    ✓ Rendered: {mermaid_file.name} → {svg_file.name} (after {attempt} fix(es))[/dim]")
-                        else:
-                            console.print(f"[dim]    ✓ Rendered: {mermaid_file.name} → {svg_file.name}[/dim]")
-                        rendered = True
-                        break
-                    else:
-                        # Rendering failed - try to fix if we have retries left
-                        if attempt < max_retries:
-                            error_msg = result.stderr
-                            console.print(f"[yellow]    ⚠ Syntax error in {mermaid_file.name}, attempting auto-fix (attempt {attempt + 1}/{max_retries})...[/yellow]")
-
-                            if self._fix_mermaid_syntax(mermaid_file, error_msg):
-                                continue  # Retry rendering
-                            else:
-                                console.print(f"[yellow]      Auto-fix failed, skipping retries[/yellow]")
-                                break
-                        else:
-                            # Out of retries
-                            break
-
-                except FileNotFoundError:
-                    console.print(
-                        "[yellow]  ⚠ Mermaid CLI (mmdc) not found. Install with: npm install -g @mermaid-js/mermaid-cli[/yellow]"
-                    )
-                    # Track all remaining mermaid files as failed
-                    for remaining_file in mermaid_files:
-                        diagram_files[remaining_file.stem] = remaining_file
-                    failed_count = len(mermaid_files)
-                    return diagram_files  # Exit early if mmdc not found
-                except subprocess.TimeoutExpired:
-                    console.print(f"[yellow]    ⚠ Timeout rendering {mermaid_file.name}[/yellow]")
-                    break
-                except Exception as e:
-                    console.print(f"[yellow]    ⚠ Error rendering {mermaid_file.name}: {e}[/yellow]")
-                    break
-
-            if not rendered:
-                # All retries failed, track the .mermaid source
+            if mermaid_file.stem not in rendered:
                 diagram_files[mermaid_file.stem] = mermaid_file
-                failed_count += 1
-                console.print(f"[dim]      Source available at {mermaid_file.name}[/dim]")
-
-        # Print summary
-        if success_count > 0 or failed_count > 0:
-            if success_count > 0:
-                console.print(f"[dim]  ✓ {success_count} diagram(s) rendered successfully[/dim]")
-            if failed_count > 0:
-                console.print(f"[dim]  ⚠ {failed_count} diagram(s) failed (source files available)[/dim]")
+                console.print(
+                    f"[dim]      Source available at {mermaid_file.name}[/dim]")
 
         return diagram_files
-
-    def _fix_mermaid_syntax(self, mermaid_file: Path, error_msg: str) -> bool:
-        """
-        Attempt to fix Mermaid syntax errors using OpenCode.
-
-        Args:
-            mermaid_file: Path to the .mermaid file with syntax errors
-            error_msg: Error message from the Mermaid CLI
-
-        Returns:
-            True if fixed successfully, False otherwise
-        """
-        try:
-            # Read the current content
-            content = mermaid_file.read_text()
-
-            # Create a prompt for OpenCode to fix the syntax
-            prompt = f"""Fix the Mermaid syntax errors in this diagram.
-
-Error message:
-{error_msg}
-
-Mermaid source:
-```mermaid
-{content}
-```
-
-Please output ONLY the corrected Mermaid code without any explanation or markdown code blocks.
-Just output the raw Mermaid syntax starting with the diagram type (e.g., 'graph', 'sequenceDiagram', 'classDiagram', etc.)."""
-
-            # Call OpenCode to fix the syntax
-            result = subprocess.run(
-                ["opencode", "run", prompt, "--format", "json"],
-                capture_output=True,
-                text=True,
-                timeout=60,
-                cwd=str(self.raw_dir),
-            )
-
-            if result.returncode != 0:
-                return False
-
-            # Parse the output to extract the fixed Mermaid code
-            fixed_content = None
-            for line in result.stdout.strip().split('\n'):
-                try:
-                    event = json.loads(line)
-                    if event.get("type") == "text":
-                        text_content = event.get("part", {}).get("text", "")
-                        if text_content and any(text_content.strip().startswith(t) for t in ["graph", "sequenceDiagram", "classDiagram", "flowchart", "erDiagram", "journey", "gantt", "pie", "gitGraph"]):
-                            fixed_content = text_content.strip()
-                            break
-                except json.JSONDecodeError:
-                    continue
-
-            if not fixed_content:
-                return False
-
-            # Write the fixed content back to the file
-            mermaid_file.write_text(fixed_content)
-            console.print(f"[dim]    ✓ Fixed syntax in {mermaid_file.name}[/dim]")
-            return True
-
-        except Exception as e:
-            console.print(f"[dim]    Failed to auto-fix {mermaid_file.name}: {e}[/dim]")
-            return False
 
     def _generate_subpages(self, diagram_files: dict[str, Path], components_data: dict[str, Any]) -> dict[str, Path]:
         """
@@ -274,7 +152,8 @@ Just output the raw Mermaid syntax starting with the diagram type (e.g., 'graph'
 
         # Generate components overview
         if (self.output_dir / "architecture.md").exists() or "components" in diagram_files or components_data.get("components"):
-            components_file = self._generate_components_page(diagram_files, components_data)
+            components_file = self._generate_components_page(
+                diagram_files, components_data)
             if components_file:
                 subpages["components_overview"] = components_file
 
@@ -305,7 +184,8 @@ Just output the raw Mermaid syntax starting with the diagram type (e.g., 'graph'
             content += "## Components\n\n"
 
             for component in components:
-                comp_id = component.get("component_id", component.get("name", "unknown"))
+                comp_id = component.get(
+                    "component_id", component.get("name", "unknown"))
                 comp_name = component.get("name", comp_id)
                 comp_type = component.get("type", "module")
                 comp_file = component.get("file_path", "")
@@ -319,7 +199,8 @@ Just output the raw Mermaid syntax starting with the diagram type (e.g., 'graph'
                     content += f"**Location**: `{comp_file}`  \n"
                 if comp_desc:
                     # Take first sentence only for overview
-                    first_sentence = comp_desc.split('.')[0] + '.' if '.' in comp_desc else comp_desc
+                    first_sentence = comp_desc.split(
+                        '.')[0] + '.' if '.' in comp_desc else comp_desc
                     content += f"\n{first_sentence}\n"
                 content += "\n"
 
@@ -333,7 +214,8 @@ Just output the raw Mermaid syntax starting with the diagram type (e.g., 'graph'
             arch_content = arch_file.read_text()
 
             # Extract components section if it exists
-            components_section = self._extract_section(arch_content, "Components")
+            components_section = self._extract_section(
+                arch_content, "Components")
             if components_section:
                 content += components_section + "\n\n"
             else:
@@ -345,22 +227,19 @@ Just output the raw Mermaid syntax starting with the diagram type (e.g., 'graph'
         if "components" in diagram_files:
             diagram_path = diagram_files["components"]
             # Calculate relative path from components/ to diagrams/
-            relative_path = "../" + str(diagram_path.relative_to(self.output_dir))
+            relative_path = "../" + \
+                str(diagram_path.relative_to(self.output_dir))
 
             content += "## Component Diagram\n\n"
 
-            # Embed rendered image if it's SVG
-            if diagram_path.suffix == ".svg":
+            # Embed rendered image if it's PNG or SVG
+            if diagram_path.suffix in (".png", ".svg"):
                 content += f"![Component Diagram]({relative_path})\n\n"
             elif diagram_path.suffix == ".mermaid":
                 # Rendering failed, show helpful message
-                content += "> ⚠️ **Note:** Diagram rendering failed due to Mermaid syntax errors.\n"
-                content += "> The source diagram is available in `src/raw/components.mermaid`. You can:\n"
-                content += "> - Fix the syntax and render manually with `mmdc -i src/raw/components.mermaid -o diagrams/components.svg`\n"
-                content += "> - View the source in a Mermaid-compatible editor\n"
-                content += "> - Check the [Mermaid documentation](https://mermaid.js.org/) for syntax help\n\n"
+                content += "> **Note:** Diagram rendering failed. The source diagram is available below.\n\n"
 
-            # Include Mermaid source
+            # Include Mermaid source as collapsible
             mermaid_source = self.raw_dir / "components.mermaid"
             if mermaid_source.exists():
                 content += "<details>\n<summary>View Mermaid Source</summary>\n\n"
@@ -383,22 +262,19 @@ Just output the raw Mermaid syntax starting with the diagram type (e.g., 'graph'
         if "dataflow" in diagram_files:
             diagram_path = diagram_files["dataflow"]
             # Calculate relative path from dataflow/ to diagrams/
-            relative_path = "../" + str(diagram_path.relative_to(self.output_dir))
+            relative_path = "../" + \
+                str(diagram_path.relative_to(self.output_dir))
 
             content += "## Data Flow Diagram\n\n"
 
-            # Embed rendered image if it's SVG
-            if diagram_path.suffix == ".svg":
+            # Embed rendered image if it's PNG or SVG
+            if diagram_path.suffix in (".png", ".svg"):
                 content += f"![Data Flow Diagram]({relative_path})\n\n"
             elif diagram_path.suffix == ".mermaid":
                 # Rendering failed, show helpful message
-                content += "> ⚠️ **Note:** Diagram rendering failed due to Mermaid syntax errors.\n"
-                content += "> The source diagram is available in `src/raw/dataflow.mermaid`. You can:\n"
-                content += "> - Fix the syntax and render manually with `mmdc -i src/raw/dataflow.mermaid -o diagrams/dataflow.svg`\n"
-                content += "> - View the source in a Mermaid-compatible editor\n"
-                content += "> - Check the [Mermaid documentation](https://mermaid.js.org/) for syntax help\n\n"
+                content += "> **Note:** Diagram rendering failed. The source diagram is available below.\n\n"
 
-            # Include Mermaid source
+            # Include Mermaid source as collapsible
             mermaid_source = self.raw_dir / "dataflow.mermaid"
             if mermaid_source.exists():
                 content += "<details>\n<summary>View Mermaid Source</summary>\n\n"
@@ -527,11 +403,10 @@ Just output the raw Mermaid syntax starting with the diagram type (e.g., 'graph'
                 diagram_path = diagram_files["components"]
                 relative_path = diagram_path.relative_to(self.output_dir)
                 content += "### Component Structure\n\n"
-                if diagram_path.suffix == ".svg":
+                if diagram_path.suffix in (".png", ".svg"):
                     content += f"![Component Diagram]({relative_path})\n\n"
                 elif diagram_path.suffix == ".mermaid":
-                    content += "> ⚠️ Diagram rendering failed (Mermaid syntax errors). "
-                    content += "View source in [components/overview.md](components/overview.md)\n\n"
+                    content += "> Diagram not rendered. View source in [components/overview.md](components/overview.md)\n\n"
                 content += "[View detailed component documentation →](components/overview.md)\n\n"
 
             # Dataflow diagram
@@ -539,11 +414,10 @@ Just output the raw Mermaid syntax starting with the diagram type (e.g., 'graph'
                 diagram_path = diagram_files["dataflow"]
                 relative_path = diagram_path.relative_to(self.output_dir)
                 content += "### Data Flow\n\n"
-                if diagram_path.suffix == ".svg":
+                if diagram_path.suffix in (".png", ".svg"):
                     content += f"![Data Flow Diagram]({relative_path})\n\n"
                 elif diagram_path.suffix == ".mermaid":
-                    content += "> ⚠️ Diagram rendering failed (Mermaid syntax errors). "
-                    content += "View source in [dataflow/overview.md](dataflow/overview.md)\n\n"
+                    content += "> Diagram not rendered. View source in [dataflow/overview.md](dataflow/overview.md)\n\n"
                 content += "[View detailed data flow documentation →](dataflow/overview.md)\n\n"
 
         # Key metrics section
@@ -552,13 +426,17 @@ Just output the raw Mermaid syntax starting with the diagram type (e.g., 'graph'
 
         artifacts_list = []
         if (self.raw_dir / "architecture.md").exists():
-            artifacts_list.append("- `src/raw/architecture.md` - Detailed architecture analysis")
+            artifacts_list.append(
+                "- `src/raw/architecture.md` - Detailed architecture analysis")
         if (self.raw_dir / "components.mermaid").exists():
-            artifacts_list.append("- `src/raw/components.mermaid` - Component diagram source")
+            artifacts_list.append(
+                "- `src/raw/components.mermaid` - Component diagram source")
         if (self.raw_dir / "dataflow.mermaid").exists():
-            artifacts_list.append("- `src/raw/dataflow.mermaid` - Data flow diagram source")
+            artifacts_list.append(
+                "- `src/raw/dataflow.mermaid` - Data flow diagram source")
         if (self.raw_dir / "tech-stack.txt").exists():
-            artifacts_list.append("- `src/raw/tech-stack.txt` - Raw technology stack")
+            artifacts_list.append(
+                "- `src/raw/tech-stack.txt` - Raw technology stack")
 
         for artifact in artifacts_list:
             content += artifact + "\n"
@@ -615,10 +493,12 @@ Just output the raw Mermaid syntax starting with the diagram type (e.g., 'graph'
         if components_json.exists():
             try:
                 data = json.loads(components_json.read_text())
-                console.print(f"[dim]  Found components data: {len(data.get('components', []))} component(s)[/dim]")
+                console.print(
+                    f"[dim]  Found components data: {len(data.get('components', []))} component(s)[/dim]")
                 return data
             except json.JSONDecodeError:
-                console.print("[yellow]  Warning: Could not parse components.json[/yellow]")
+                console.print(
+                    "[yellow]  Warning: Could not parse components.json[/yellow]")
                 return {}
 
         return {}
@@ -643,27 +523,32 @@ Just output the raw Mermaid syntax starting with the diagram type (e.g., 'graph'
             # Try to extract from architecture.md
             arch_file = self.raw_dir / "architecture.md"
             if arch_file.exists():
-                components = self._extract_components_from_architecture(arch_file)
+                components = self._extract_components_from_architecture(
+                    arch_file)
 
         if not components:
             console.print("[dim]  No detailed component data available[/dim]")
             return component_files
 
-        console.print(f"[dim]  Generating {len(components)} component files...[/dim]")
+        console.print(
+            f"[dim]  Generating {len(components)} component files...[/dim]")
 
         for component in components:
-            component_id = component.get("component_id", component.get("name", "unknown"))
+            component_id = component.get(
+                "component_id", component.get("name", "unknown"))
             # Sanitize filename
             safe_id = re.sub(r'[^a-zA-Z0-9_-]', '-', component_id.lower())
             component_file = self.output_dir / "components" / f"{safe_id}.md"
 
             # Generate component documentation
-            content = self._generate_component_content(component, components_data)
+            content = self._generate_component_content(
+                component, components_data)
             component_file.write_text(content)
 
             component_files[f"component_{safe_id}"] = component_file
 
-        console.print(f"[dim]    ✓ Created {len(component_files)} component files[/dim]")
+        console.print(
+            f"[dim]    ✓ Created {len(component_files)} component files[/dim]")
         return component_files
 
     def _generate_component_content(self, component: dict[str, Any], components_data: dict[str, Any]) -> str:
@@ -751,7 +636,8 @@ Just output the raw Mermaid syntax starting with the diagram type (e.g., 'graph'
                     )
                     if dep_component:
                         dep_name = dep_component.get("name", dep_id)
-                        safe_id = re.sub(r'[^a-zA-Z0-9_-]', '-', dep_id.lower())
+                        safe_id = re.sub(r'[^a-zA-Z0-9_-]',
+                                         '-', dep_id.lower())
                         content += f"- [`{dep_name}`]({safe_id}.md) (`{dep_id}`)\n"
                     else:
                         content += f"- `{dep_id}`\n"
@@ -813,11 +699,13 @@ Just output the raw Mermaid syntax starting with the diagram type (e.g., 'graph'
         """
         dependents = []
         for component in components_data.get("components", []):
-            internal_deps = component.get("dependencies", {}).get("internal", [])
+            internal_deps = component.get(
+                "dependencies", {}).get("internal", [])
             if component_id in internal_deps:
                 dependents.append((
                     component.get("component_id", ""),
-                    component.get("name", component.get("component_id", "Unknown"))
+                    component.get("name", component.get(
+                        "component_id", "Unknown"))
                 ))
         return dependents
 
@@ -856,25 +744,29 @@ Just output the raw Mermaid syntax starting with the diagram type (e.g., 'graph'
 
         # Generate overview
         overview_file = self.output_dir / "dependencies" / "overview.md"
-        overview_content = self._generate_dependencies_overview(components_data)
+        overview_content = self._generate_dependencies_overview(
+            components_data)
         overview_file.write_text(overview_content)
         dependency_files["dependencies_overview"] = overview_file
 
         # Generate upstream dependencies (what each component depends on)
         downstream_file = self.output_dir / "dependencies" / "downstream.md"
-        downstream_content = self._generate_downstream_dependencies(components_data)
+        downstream_content = self._generate_downstream_dependencies(
+            components_data)
         downstream_file.write_text(downstream_content)
         dependency_files["dependencies_downstream"] = downstream_file
 
         # Generate downstream dependencies (what depends on each component)
         upstream_file = self.output_dir / "dependencies" / "upstream.md"
-        upstream_content = self._generate_upstream_dependencies(components_data)
+        upstream_content = self._generate_upstream_dependencies(
+            components_data)
         upstream_file.write_text(upstream_content)
         dependency_files["dependencies_upstream"] = upstream_file
 
         # Generate external dependencies
         external_file = self.output_dir / "dependencies" / "external.md"
-        external_content = self._generate_external_dependencies(components_data)
+        external_content = self._generate_external_dependencies(
+            components_data)
         external_file.write_text(external_content)
         dependency_files["dependencies_external"] = external_file
 
@@ -947,7 +839,8 @@ Just output the raw Mermaid syntax starting with the diagram type (e.g., 'graph'
                     if dep_comp:
                         dep_name = dep_comp.get("name", dep_id)
                         dep_file = dep_comp.get("file_path", "")
-                        safe_dep_id = re.sub(r'[^a-zA-Z0-9_-]', '-', dep_id.lower())
+                        safe_dep_id = re.sub(
+                            r'[^a-zA-Z0-9_-]', '-', dep_id.lower())
                         content += f"- [`{dep_name}`](../components/{safe_dep_id}.md)"
                         if dep_file:
                             content += f" - `{dep_file}`"
@@ -998,7 +891,8 @@ Just output the raw Mermaid syntax starting with the diagram type (e.g., 'graph'
                         (c for c in components if c.get("component_id") == dep_id),
                         None
                     )
-                    safe_dep_id = re.sub(r'[^a-zA-Z0-9_-]', '-', dep_id.lower())
+                    safe_dep_id = re.sub(
+                        r'[^a-zA-Z0-9_-]', '-', dep_id.lower())
                     content += f"- [`{dep_name}`](../components/{safe_dep_id}.md)"
                     if dep_comp and dep_comp.get("file_path"):
                         content += f" - `{dep_comp.get('file_path')}`"
@@ -1080,7 +974,8 @@ Just output the raw Mermaid syntax starting with the diagram type (e.g., 'graph'
         if not all_endpoints:
             return api_files
 
-        console.print(f"[dim]  Generating API documentation for {len(all_endpoints)} endpoint(s)...[/dim]")
+        console.print(
+            f"[dim]  Generating API documentation for {len(all_endpoints)} endpoint(s)...[/dim]")
 
         # Generate overview
         overview_file = self.output_dir / "api" / "overview.md"
@@ -1092,7 +987,8 @@ Just output the raw Mermaid syntax starting with the diagram type (e.g., 'graph'
         for idx, endpoint_data in enumerate(all_endpoints):
             endpoint = endpoint_data["endpoint"]
             # Sanitize endpoint for filename
-            safe_name = re.sub(r'[^a-zA-Z0-9_-]', '-', endpoint.replace('/', '-'))
+            safe_name = re.sub(r'[^a-zA-Z0-9_-]', '-',
+                               endpoint.replace('/', '-'))
             if safe_name.startswith('-'):
                 safe_name = safe_name[1:]
 
@@ -1124,7 +1020,8 @@ Just output the raw Mermaid syntax starting with the diagram type (e.g., 'graph'
             for endpoint_data in endpoints:
                 endpoint = endpoint_data["endpoint"]
                 comp_name = endpoint_data["component_name"]
-                safe_name = re.sub(r'[^a-zA-Z0-9_-]', '-', endpoint.replace('/', '-'))
+                safe_name = re.sub(r'[^a-zA-Z0-9_-]', '-',
+                                   endpoint.replace('/', '-'))
                 if safe_name.startswith('-'):
                     safe_name = safe_name[1:]
 
