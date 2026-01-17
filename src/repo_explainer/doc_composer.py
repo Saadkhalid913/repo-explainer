@@ -86,7 +86,7 @@ class DocComposer:
         Render Mermaid diagrams to SVG format.
 
         Returns:
-            Dictionary mapping diagram names to SVG file paths
+            Dictionary mapping diagram names to SVG file paths (or .mermaid paths if rendering failed)
         """
         diagram_files = {}
 
@@ -98,6 +98,9 @@ class DocComposer:
             return diagram_files
 
         console.print(f"[dim]  Rendering {len(mermaid_files)} diagram(s)...[/dim]")
+
+        success_count = 0
+        failed_count = 0
 
         for mermaid_file in mermaid_files:
             svg_file = self.diagrams_dir / f"{mermaid_file.stem}.svg"
@@ -113,23 +116,51 @@ class DocComposer:
 
                 if result.returncode == 0:
                     diagram_files[mermaid_file.stem] = svg_file
+                    success_count += 1
                     console.print(f"[dim]    ✓ Rendered: {mermaid_file.name} → {svg_file.name}[/dim]")
                 else:
+                    # Rendering failed, but still track the .mermaid source
+                    diagram_files[mermaid_file.stem] = mermaid_file
+                    failed_count += 1
+
+                    # Show simplified error message
+                    error_lines = result.stderr.split('\n')
+                    error_summary = error_lines[0] if error_lines else "Unknown error"
                     console.print(
-                        f"[yellow]    ⚠ Failed to render {mermaid_file.name}: {result.stderr}[/yellow]"
+                        f"[yellow]    ⚠ Syntax error in {mermaid_file.name}: {error_summary}[/yellow]"
+                    )
+                    console.print(
+                        f"[dim]      Source available at {mermaid_file.name}[/dim]"
                     )
 
             except FileNotFoundError:
                 console.print(
                     "[yellow]  ⚠ Mermaid CLI (mmdc) not found. Install with: npm install -g @mermaid-js/mermaid-cli[/yellow]"
                 )
-                # Still track the mermaid file even if we can't render it
-                diagram_files[mermaid_file.stem] = mermaid_file
+                # Track all remaining mermaid files as failed
+                for remaining_file in mermaid_files:
+                    diagram_files[remaining_file.stem] = remaining_file
+                failed_count = len(mermaid_files)
                 break
             except subprocess.TimeoutExpired:
+                # Track the source file even if timeout
+                diagram_files[mermaid_file.stem] = mermaid_file
+                failed_count += 1
                 console.print(f"[yellow]    ⚠ Timeout rendering {mermaid_file.name}[/yellow]")
+                console.print(f"[dim]      Source available at {mermaid_file.name}[/dim]")
             except Exception as e:
+                # Track the source file even on exception
+                diagram_files[mermaid_file.stem] = mermaid_file
+                failed_count += 1
                 console.print(f"[yellow]    ⚠ Error rendering {mermaid_file.name}: {e}[/yellow]")
+                console.print(f"[dim]      Source available at {mermaid_file.name}[/dim]")
+
+        # Print summary
+        if success_count > 0 or failed_count > 0:
+            if success_count > 0:
+                console.print(f"[dim]  ✓ {success_count} diagram(s) rendered successfully[/dim]")
+            if failed_count > 0:
+                console.print(f"[dim]  ⚠ {failed_count} diagram(s) failed (source files available)[/dim]")
 
         return diagram_files
 
@@ -195,6 +226,13 @@ class DocComposer:
             # Embed rendered image if it's SVG
             if diagram_path.suffix == ".svg":
                 content += f"![Component Diagram]({relative_path})\n\n"
+            elif diagram_path.suffix == ".mermaid":
+                # Rendering failed, show helpful message
+                content += "> ⚠️ **Note:** Diagram rendering failed due to Mermaid syntax errors.\n"
+                content += "> The source diagram is available below. You can:\n"
+                content += "> - Fix the syntax and render manually with `mmdc -i components.mermaid -o components.svg`\n"
+                content += "> - View the source in a Mermaid-compatible editor\n"
+                content += "> - Check the [Mermaid documentation](https://mermaid.js.org/) for syntax help\n\n"
 
             # Include Mermaid source
             mermaid_source = self.output_dir / "components.mermaid"
@@ -225,6 +263,13 @@ class DocComposer:
             # Embed rendered image if it's SVG
             if diagram_path.suffix == ".svg":
                 content += f"![Data Flow Diagram]({relative_path})\n\n"
+            elif diagram_path.suffix == ".mermaid":
+                # Rendering failed, show helpful message
+                content += "> ⚠️ **Note:** Diagram rendering failed due to Mermaid syntax errors.\n"
+                content += "> The source diagram is available below. You can:\n"
+                content += "> - Fix the syntax and render manually with `mmdc -i dataflow.mermaid -o dataflow.svg`\n"
+                content += "> - View the source in a Mermaid-compatible editor\n"
+                content += "> - Check the [Mermaid documentation](https://mermaid.js.org/) for syntax help\n\n"
 
             # Include Mermaid source
             mermaid_source = self.output_dir / "dataflow.mermaid"
@@ -349,6 +394,9 @@ class DocComposer:
                 content += "### Component Structure\n\n"
                 if diagram_path.suffix == ".svg":
                     content += f"![Component Diagram]({relative_path})\n\n"
+                elif diagram_path.suffix == ".mermaid":
+                    content += "> ⚠️ Diagram rendering failed (Mermaid syntax errors). "
+                    content += "View source in [components.md](components.md)\n\n"
                 content += "[View detailed component documentation →](components.md)\n\n"
 
             # Dataflow diagram
@@ -358,6 +406,9 @@ class DocComposer:
                 content += "### Data Flow\n\n"
                 if diagram_path.suffix == ".svg":
                     content += f"![Data Flow Diagram]({relative_path})\n\n"
+                elif diagram_path.suffix == ".mermaid":
+                    content += "> ⚠️ Diagram rendering failed (Mermaid syntax errors). "
+                    content += "View source in [dataflow.md](dataflow.md)\n\n"
                 content += "[View detailed data flow documentation →](dataflow.md)\n\n"
 
         # Key metrics section
