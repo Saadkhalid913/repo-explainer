@@ -2,28 +2,33 @@
 
 ## Overview
 
-This pie chart shows the breakdown of synchronous vs asynchronous communication.
-
 **Diagram:** [View Diagram](../diagrams/src/communication-types.mermaid)
 
 ## Statistics
 
 | Pattern | Count | Percentage |
 |---------|-------|------------|
-| HTTP/REST (Sync) | 2 | 100% |
-| Events (Async) | 0 | 0% |
-| **Total** | **2** | **100%** |
+| HTTP/REST (Sync) | 2 | 67% |
+| Events (Async) | 1 | 33% |
+| **Total** | **3** | **100%** |
 
 ## Synchronous Communication (HTTP/REST)
 
-### API Gateway Pattern
+| Source | Target | Details |
+|--------|--------|--------|
+| api-gateway | account-service | GET /accounts |
+| api-gateway | transaction-processor | POST /transactions |
 
-Front-end routes all customer requests to backend services.
 
-**Diagram:** [View Diagram](../diagrams/src/api-gateway.mermaid)
+## Asynchronous Communication (Events)
 
-### Service Orchestration
+**Diagram:** [View Diagram](../diagrams/src/event-flow.mermaid)
 
-Orders service coordinates multiple services during checkout.
+### Publishers
 
-**Diagram:** [View Diagram](../diagrams/src/orchestration-sequence.mermaid)
+- **transaction-processor**: transaction.completed, transaction.failed
+
+### Subscribers
+
+- **notification-service**: transaction.completed
+

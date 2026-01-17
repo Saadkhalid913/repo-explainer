@@ -1,18 +1,19 @@
 # Dependencies Overview
 
-**Total Services:** 3
-**Inter-Service Dependencies:** 2
+**Total Services:** 4
+**Inter-Service Dependencies:** 3
 **Shared External Packages:** 1
 
 ## Quick Links
 
-- [Service Dependency Graph](service-graph.md) - Visual dependency relationships
-- [Shared Libraries](shared-libraries.md) - Common external packages
+- [Service Dependency Graph](service-graph.md)
+- [Shared Libraries](shared-libraries.md)
 
 ## Dependency Summary
 
 | Service | Dependencies | Dependents |
 |---------|--------------|------------|
-| front-end | 1 | 0 |
-| orders | 1 | 1 |
-| payment | 0 | 1 |
+| api-gateway | 2 | 0 |
+| account-service | 0 | 1 |
+| transaction-processor | 1 | 1 |
+| notification-service | 0 | 1 |

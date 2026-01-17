@@ -2,17 +2,18 @@
 
 ## System Data Flow
 
-This diagram shows how data flows from user input through the presentation layer, business processing, and backend services.
+This diagram shows how data flows through the system layers.
 
 **Diagram:** [View Diagram](../diagrams/src/data-flow.mermaid)
 
 ## Data Flow Patterns
 
-### From front-end
+### From api-gateway
 
-- **→ orders** (http): /orders
+- **→ account-service** (http): GET /accounts
+- **→ transaction-processor** (http): POST /transactions
 
-### From orders
+### From transaction-processor
 
-- **→ payment** (http): /payment
+- **→ notification-service** (event): transaction.completed
 

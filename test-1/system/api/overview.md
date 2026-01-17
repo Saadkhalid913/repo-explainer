@@ -2,15 +2,19 @@
 
 ## API Topology
 
-This diagram shows all API services and how external clients connect to them.
+This diagram shows all services and how they connect.
 
 **Diagram:** [View Diagram](../diagrams/src/api-topology.mermaid)
 
 ## Endpoint Summary
 
-**Total Endpoints Detected:** 1
+**Total Endpoints Detected:** 2
 
-### orders
+### account-service
 
-- `POST /orders`
+- `GET /accounts/{id}`
+
+### transaction-processor
+
+- `POST /transactions`
 

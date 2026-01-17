@@ -10,21 +10,23 @@ This diagram shows all services within the system boundary, their technologies, 
 
 ### Presentation Layer
 
-- **front-end** (Unknown) - Customer-facing interface
+- **api-gateway** (Unknown)
 
 ### Business Logic Layer
 
-- **orders** (Unknown) - Core business operations
+- **account-service** (Unknown)
+- **transaction-processor** (Unknown)
 
 ### Integration Layer
 
-- **payment** (Unknown) - External integrations
+- **notification-service** (Unknown)
 
 
 ## Component Interaction Matrix
 
 | Component | Depends On | Used By | Layer |
 |-----------|------------|---------|-------|
-| front-end | orders | - | Presentation |
-| orders | payment | front-end | Business |
-| payment | - | orders | Integration |
+| api-gateway | account-service, transaction-processor | - | Presentation |
+| account-service | - | api-gateway | Business |
+| transaction-processor | notification-service | api-gateway | Business |
+| notification-service | - | transaction-processor | Integration |

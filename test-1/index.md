@@ -1,11 +1,11 @@
 # System Documentation
 
 **Analysis Date:** 2026-01-17
-**Services Analyzed:** 3
+**Services Analyzed:** 4
 
 ## System Overview
 
-This documentation describes a microservices system with 3 services. The architecture is organized into layers: Presentation, Business Logic, Integration, and Infrastructure.
+This documentation describes a distributed system with 4 services.
 
 **Architecture Diagram:** [View Layered Architecture](system/diagrams/src/layered-architecture.mermaid)
 
@@ -24,9 +24,10 @@ This documentation describes a microservices system with 3 services. The archite
 
 ### Individual Services
 
-- [front-end](services/front-end/index.md) (Unknown)
-- [orders](services/orders/index.md) (Unknown)
-- [payment](services/payment/index.md) (Unknown)
+- [api-gateway](services/api-gateway/index.md) (Unknown)
+- [account-service](services/account-service/index.md) (Unknown)
+- [transaction-processor](services/transaction-processor/index.md) (Unknown)
+- [notification-service](services/notification-service/index.md) (Unknown)
 
 
 ---

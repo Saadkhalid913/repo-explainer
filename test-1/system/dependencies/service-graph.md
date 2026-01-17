@@ -2,8 +2,6 @@
 
 ## Layered Architecture
 
-This diagram shows all services organized by layer with color-coded styling.
-
 **Diagram:** [View Diagram](../diagrams/src/layered-architecture.mermaid)
 
 ## Dependency Analysis
@@ -12,15 +10,17 @@ This diagram shows all services organized by layer with color-coded styling.
 
 | Service | Depended On By | Count |
 |---------|----------------|-------|
-| front-end | - | 0 |
-| orders | front-end | 1 |
-| payment | orders | 1 |
+| api-gateway | - | 0 |
+| account-service | api-gateway | 1 |
+| transaction-processor | api-gateway | 1 |
+| notification-service | transaction-processor | 1 |
 
 
 ### Downstream Dependencies (What this service depends on)
 
 | Service | Depends On | Count |
 |---------|------------|-------|
-| front-end | orders | 1 |
-| orders | payment | 1 |
-| payment | - | 0 |
+| api-gateway | account-service, transaction-processor | 2 |
+| account-service | - | 0 |
+| transaction-processor | notification-service | 1 |
+| notification-service | - | 0 |

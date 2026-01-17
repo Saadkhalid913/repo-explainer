@@ -1,11 +1,9 @@
 # System Architecture Overview
 
-**Total Services:** 3
+**Total Services:** 4
 **Analysis Date:** 2026-01-17
 
 ## Architecture Diagram
-
-This diagram shows all services organized by architectural layer with their dependencies.
 
 **Diagram:** [View Layered Architecture](diagrams/src/layered-architecture.mermaid)
 
@@ -13,36 +11,42 @@ This diagram shows all services organized by architectural layer with their depe
 
 | Metric | Value |
 |--------|-------|
-| Services | 3 |
-| Inter-Service Connections | 2 |
+| Services | 4 |
+| Inter-Service Connections | 3 |
 | HTTP/REST Calls | 2 |
-| Event-Driven Flows | 0 |
+| Event-Driven Flows | 1 |
 
 ## Services
 
-### front-end
+### api-gateway
 
 - **Language:** Unknown
-- **Repository:** `https://example.com/fe`
-- **Documentation:** [View Details](../services/front-end/overview.md)
+- **Repository:** `https://example.com/api`
+- **Documentation:** [View Details](../services/api-gateway/overview.md)
 
-### orders
-
-- **Language:** Unknown
-- **Repository:** `https://example.com/orders`
-- **Documentation:** [View Details](../services/orders/overview.md)
-
-### payment
+### account-service
 
 - **Language:** Unknown
-- **Repository:** `https://example.com/payment`
-- **Documentation:** [View Details](../services/payment/overview.md)
+- **Repository:** `https://example.com/account`
+- **Documentation:** [View Details](../services/account-service/overview.md)
+
+### transaction-processor
+
+- **Language:** Unknown
+- **Repository:** `https://example.com/tx`
+- **Documentation:** [View Details](../services/transaction-processor/overview.md)
+
+### notification-service
+
+- **Language:** Unknown
+- **Repository:** `https://example.com/notify`
+- **Documentation:** [View Details](../services/notification-service/overview.md)
 
 ## Quick Links
 
-- [Component Architecture](components/overview.md) - Services as system components
-- [Data Flow](dataflow/overview.md) - How data moves through the system
-- [API Documentation](api/overview.md) - API endpoints and flows
-- [Dependencies](dependencies/overview.md) - Service dependency graph
-- [Communication Patterns](communication/overview.md) - Sync vs async patterns
+- [Component Architecture](components/overview.md)
+- [Data Flow](dataflow/overview.md)
+- [API Documentation](api/overview.md)
+- [Dependencies](dependencies/overview.md)
+- [Communication Patterns](communication/overview.md)
 

@@ -4,4 +4,4 @@ External packages used by multiple services.
 
 | Package | Used By | Service Count |
 |---------|---------|---------------|
-| `express` | front-end, orders | 2 |
+| `express` | account-service, api-gateway | 2 |
