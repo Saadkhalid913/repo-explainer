@@ -4,11 +4,13 @@ AI-powered repository documentation generator using OpenCode. Analyze **any** re
 
 ## Features
 
+📚 **Coherent Documentation** - Generates navigable, structured documentation with `index.md` as the entry point, organized subpages, and embedded diagrams.
+
 ✨ **Analyze Remote Repositories** - No need to clone manually! Pass a Git URL and we'll handle it.
 
 🚀 **Multi-Depth Analysis** - Choose from quick, standard, or deep analysis modes.
 
-📊 **Rich Diagrams** - Generate Mermaid architecture and data flow diagrams.
+📊 **Rich Diagrams** - Generates and renders Mermaid architecture and data flow diagrams as SVG.
 
 🔄 **Smart Caching** - Cloned repositories are reused on subsequent runs.
 
@@ -30,6 +32,7 @@ pip install -e .
 **Prerequisites:**
 - Python 3.9+
 - [OpenCode CLI](https://docs.opencode.ai) installed and in PATH
+- [Mermaid CLI](https://github.com/mermaid-js/mermaid-cli) (optional, for diagram rendering): `npm install -g @mermaid-js/mermaid-cli`
 
 ### Basic Usage
 
@@ -49,15 +52,26 @@ repo-explain analyze https://github.com/facebook/react --force-clone
 
 **Where are results saved?**
 
-Analysis results are saved to `./docs/` by default:
+Analysis results are saved to `./docs/` by default as **coherent, navigable documentation**:
 ```
 docs/
-├── ANALYSIS_SUMMARY.md          # Quick overview
-├── analysis_quick.json           # Structured output
+├── index.md                      # 🎯 Start here! Main entry point
+├── components.md                 # Component architecture
+├── dataflow.md                   # Data flow visualization
+├── tech-stack.md                 # Technology stack
+├── diagrams/
+│   ├── components.svg            # Rendered component diagram
+│   └── dataflow.svg              # Rendered data flow diagram
+├── architecture.md               # Full architecture analysis
+├── components.mermaid            # Mermaid source
+├── dataflow.mermaid              # Mermaid source
+├── tech-stack.txt                # Raw tech stack
 └── logs/
-    ├── analysis_20260117.txt     # Raw OpenCode output
-    └── metadata_20260117.json    # Session metadata
+    ├── analysis_*.txt            # Raw OpenCode output
+    └── metadata_*.json           # Session metadata
 ```
+
+**Start exploring:** Open `docs/index.md` for quick navigation to all documentation sections.
 
 You can specify a custom output directory:
 ```bash
@@ -182,6 +196,21 @@ Test 10: Force re-clone... PASS
 All tests passed!
 ```
 
+### Validating Coherent Documentation
+
+After running analysis, you can validate the generated documentation structure:
+
+```bash
+python validate_coherence.py docs
+```
+
+This checks:
+- ✓ `index.md` exists and has valid links
+- ✓ Subpages (components.md, dataflow.md, tech-stack.md) exist
+- ✓ Diagrams are rendered (SVG files in `diagrams/` directory)
+- ✓ Mermaid source files are present
+- ✓ Manifest file exists
+
 ## Documentation
 
 - **[docs.md](docs.md)** - Complete API reference with examples
@@ -212,6 +241,20 @@ rm -rf tmp/owner/repo
 # Remove all clones
 rm -rf tmp/
 ```
+
+### Mermaid CLI Not Found
+
+Diagram rendering requires the Mermaid CLI. If you see warnings about `mmdc` not being found:
+
+```bash
+# Install Mermaid CLI globally
+npm install -g @mermaid-js/mermaid-cli
+
+# Verify installation
+mmdc --version
+```
+
+**Note:** Documentation will still be generated without Mermaid CLI, but diagrams won't be rendered to SVG. You can manually render them later or view the `.mermaid` source files.
 
 ## Project Structure
 

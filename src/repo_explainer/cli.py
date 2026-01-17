@@ -226,11 +226,41 @@ def analyze(
         # Display output location
         console.print(f"[bold]Output saved to:[/bold] [cyan]{output_manager.get_output_location()}[/cyan]\n")
 
-        console.print("[bold]Generated files:[/bold]")
-        for output_type, file_path in output_files.items():
-            console.print(f"  - {output_type}: [cyan]{file_path.absolute()}[/cyan]")
+        # Separate coherent docs from technical artifacts
+        coherent_docs = {}
+        technical_files = {}
 
-        console.print(f"\n[dim]Tip: Start with `cat {settings.output_dir.absolute()}/ANALYSIS_SUMMARY.md`[/dim]")
+        for output_type, file_path in output_files.items():
+            if output_type in ["index", "components", "dataflow", "tech-stack"]:
+                coherent_docs[output_type] = file_path
+            elif output_type.endswith("_mermaid") or output_type.endswith("_md"):
+                # Skip raw artifacts if we have composed docs
+                continue
+            else:
+                technical_files[output_type] = file_path
+
+        # Display coherent documentation first
+        if coherent_docs:
+            console.print("[bold]📚 Coherent Documentation:[/bold]")
+            if "index" in coherent_docs:
+                console.print(f"  - [cyan]index.md[/cyan] (Start here!)")
+            for doc_type, file_path in coherent_docs.items():
+                if doc_type != "index":
+                    console.print(f"  - [cyan]{file_path.name}[/cyan]")
+            console.print()
+
+        # Display technical artifacts
+        if technical_files:
+            console.print("[bold]🔧 Technical Artifacts:[/bold]")
+            for output_type, file_path in technical_files.items():
+                console.print(f"  - {output_type}: [dim]{file_path.name}[/dim]")
+            console.print()
+
+        # Update tip message
+        if "index" in coherent_docs:
+            console.print(f"[dim]💡 Tip: Open `{settings.output_dir.absolute()}/index.md` to start exploring[/dim]")
+        else:
+            console.print(f"[dim]💡 Tip: Start with `cat {settings.output_dir.absolute()}/ANALYSIS_SUMMARY.md`[/dim]")
 
         if result.session_id:
             console.print(f"\n[dim]Session ID: {result.session_id}[/dim]")

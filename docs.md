@@ -2,15 +2,20 @@
 
 **Version:** 0.1.0
 **Stage:** 1 - MVP Essentials
-**Last Updated:** 2025-01-17 - Git URL support added
+**Last Updated:** 2025-01-17 - Coherent documentation added
 
 ## Changes
 
-### v0.1.0 - Git URL Support
-- **NEW**: Added Git URL support - analyze remote repositories without cloning manually
-- **NEW**: Repositories are automatically cloned to `./tmp/owner/repo`
-- **NEW**: `--force-clone` flag to re-clone existing repositories
-- **NEW**: `RepositoryLoader` service handles both local paths and Git URLs
+### v0.1.0 - Coherent Documentation
+- **NEW**: Coherent documentation generation with `index.md` as the entry point
+- **NEW**: `DocComposer` module generates organized subpages (components.md, dataflow.md, tech-stack.md)
+- **NEW**: Automatic diagram rendering (Mermaid → SVG) via Mermaid CLI
+- **NEW**: Validation script (`validate_coherence.py`) for documentation structure
+- **NEW**: Improved CLI output showing coherent docs first
+- Added Git URL support - analyze remote repositories without cloning manually
+- Repositories are automatically cloned to `./tmp/owner/repo`
+- `--force-clone` flag to re-clone existing repositories
+- `RepositoryLoader` service handles both local paths and Git URLs
 - Fixed OpenCode CLI command syntax to use `opencode run <prompt>`
 - CLI successfully invokes OpenCode and receives JSON output
 
@@ -372,6 +377,94 @@ loader.cleanup(owner="torvalds")
 # Clean entire tmp directory
 loader.cleanup()
 ```
+
+---
+
+### DocComposer
+
+Service for generating coherent, navigable documentation from OpenCode artifacts.
+
+**Location:** `src/repo_explainer/doc_composer.py`
+
+**Class:** `DocComposer`
+
+#### Constructor
+
+```python
+DocComposer(output_dir: Path)
+```
+
+**Parameters:**
+- `output_dir` (Path): Directory containing OpenCode artifacts and where composed docs will be written
+
+**Example:**
+```python
+from pathlib import Path
+from repo_explainer.doc_composer import DocComposer
+
+composer = DocComposer(output_dir=Path("./docs"))
+```
+
+#### Methods
+
+##### `compose(repo_path, depth, session_id=None, timestamp=None) -> dict[str, Path]`
+
+Compose coherent documentation from raw OpenCode artifacts.
+
+**Parameters:**
+- `repo_path` (Path): Path to analyzed repository
+- `depth` (str): Analysis depth (quick, standard, deep)
+- `session_id` (str, optional): OpenCode session ID
+- `timestamp` (str, optional): Analysis timestamp (auto-generated if not provided)
+
+**Returns:**
+- Dictionary mapping document types to file paths
+
+**Generated files:**
+- `index.md` - Main entry point with navigation and embedded diagrams
+- `components.md` - Component architecture documentation
+- `dataflow.md` - Data flow visualization and narrative
+- `tech-stack.md` - Normalized technology stack list
+- `diagrams/*.svg` - Rendered diagram files (if Mermaid CLI is available)
+- `.repo-explainer/coherence.json` - Manifest of generated files
+
+**Example:**
+```python
+from pathlib import Path
+from repo_explainer.doc_composer import DocComposer
+
+composer = DocComposer(output_dir=Path("./docs"))
+composed_files = composer.compose(
+    repo_path=Path("./my-repo"),
+    depth="standard",
+    session_id="ses_abc123",
+    timestamp="20260117_120000"
+)
+
+# composed_files contains:
+# {
+#   "index": Path("./docs/index.md"),
+#   "components": Path("./docs/components.md"),
+#   "dataflow": Path("./docs/dataflow.md"),
+#   "tech-stack": Path("./docs/tech-stack.md"),
+#   "dataflow": Path("./docs/diagrams/dataflow.svg"),
+#   "manifest": Path("./docs/.repo-explainer/coherence.json")
+# }
+```
+
+**Requirements:**
+- OpenCode artifacts must exist in `output_dir`:
+  - `architecture.md` (optional)
+  - `components.mermaid` (optional)
+  - `dataflow.mermaid` (optional)
+  - `tech-stack.txt` (optional)
+- Mermaid CLI (`mmdc`) for diagram rendering (optional - gracefully degrades if not available)
+
+**Behavior:**
+1. Scans for `.mermaid` files and renders them to SVG
+2. Generates normalized subpages from raw artifacts
+3. Creates `index.md` with navigation and embedded diagrams
+4. Generates manifest file for tracking
 
 ---
 

@@ -8,6 +8,7 @@ from typing import Any
 
 from rich.console import Console
 
+from .doc_composer import DocComposer
 from .opencode_service import OpenCodeResult
 
 console = Console()
@@ -103,6 +104,17 @@ class OutputManager:
             self._write_structured_output(result.output, structured_file)
             output_files["structured"] = structured_file
 
+        # Compose coherent documentation
+        if result.success and opencode_artifacts:
+            composer = DocComposer(self.output_dir)
+            composed_files = composer.compose(
+                repo_path=repo_path,
+                depth=depth,
+                session_id=result.session_id,
+                timestamp=timestamp,
+            )
+            output_files.update(composed_files)
+
         return output_files
 
     def _copy_opencode_artifacts(self, repo_path: Path) -> dict[str, Path]:
@@ -188,23 +200,18 @@ class OutputManager:
             summary += "\n"
 
         # Next steps
-        if opencode_artifacts:
-            summary += "## Next Steps\n\n"
-            summary += "**Start here:**\n"
-            if "architecture_md" in opencode_artifacts:
-                summary += f"1. Read `architecture.md` for a comprehensive overview\n"
-            if "components_mermaid" in opencode_artifacts:
-                summary += f"2. View `components.mermaid` for component diagrams\n"
-            if "dataflow_mermaid" in opencode_artifacts:
-                summary += f"3. View `dataflow.mermaid` for data flow visualization\n"
-            if "tech-stack_txt" in opencode_artifacts:
-                summary += f"4. Check `tech-stack.txt` for technology stack\n"
-        else:
-            summary += "## Next Steps\n\n"
-            summary += "Review the technical output files above for:\n"
+        summary += "## Next Steps\n\n"
+        summary += "**Start here:**\n"
+        summary += "1. Open `index.md` for the main documentation entry point\n"
+        summary += "2. Browse organized subpages (components.md, dataflow.md, tech-stack.md)\n"
+        summary += "3. View rendered diagrams in the `diagrams/` directory\n\n"
+
+        if not opencode_artifacts:
+            summary += "**Alternative:**\n"
+            summary += "Review the technical output files for:\n"
             summary += "- Repository structure insights\n"
             summary += "- Technology stack information\n"
-            summary += "- Architecture patterns\n"
+            summary += "- Architecture patterns\n\n"
 
         return summary
 
