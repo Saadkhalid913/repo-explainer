@@ -52,24 +52,36 @@ repo-explain analyze https://github.com/facebook/react --force-clone
 
 **Where are results saved?**
 
-Analysis results are saved to `./docs/` by default as **coherent, navigable documentation**:
+Analysis results are saved to `./docs/` with a clean, organized structure:
 ```
 docs/
-├── index.md                      # 🎯 Start here! Main entry point
-├── components.md                 # Component architecture
-├── dataflow.md                   # Data flow visualization
-├── tech-stack.md                 # Technology stack
+├── index.md                     # 🎯 Start here! Main entry point
+├── components/
+│   └── overview.md              # Component architecture
+├── dataflow/
+│   └── overview.md              # Data flow visualization
+├── tech-stack/
+│   └── overview.md              # Technology stack
 ├── diagrams/
-│   ├── components.svg            # Rendered component diagram
-│   └── dataflow.svg              # Rendered data flow diagram
-├── architecture.md               # Full architecture analysis
-├── components.mermaid            # Mermaid source
-├── dataflow.mermaid              # Mermaid source
-├── tech-stack.txt                # Raw tech stack
-└── logs/
-    ├── analysis_*.txt            # Raw OpenCode output
-    └── metadata_*.json           # Session metadata
+│   ├── components.svg           # Rendered component diagram
+│   └── dataflow.svg             # Rendered data flow diagram
+└── src/
+    ├── raw/                     # OpenCode artifacts
+    │   ├── architecture.md
+    │   ├── components.mermaid
+    │   ├── dataflow.mermaid
+    │   └── tech-stack.txt
+    ├── analysis_*.json
+    ├── ANALYSIS_SUMMARY.md
+    └── logs/
+        ├── analysis_*.txt       # Raw OpenCode output
+        └── metadata_*.json      # Session metadata
 ```
+
+**Professional structure:**
+- **Top level:** Only folders + index.md (clean, navigable)
+- **Subdirectories:** Organized human-readable docs
+- **src/:** All source files and technical artifacts
 
 **Start exploring:** Open `docs/index.md` for quick navigation to all documentation sections.
 
@@ -164,6 +176,9 @@ export REPO_EXPLAINER_VERBOSE=true
 
 # Default analysis depth
 export REPO_EXPLAINER_ANALYSIS_DEPTH=standard
+
+# Default OpenCode model (provider/model)
+export REPO_EXPLAINER_OPENCODE_MODEL=openrouter/google/gemini-3-flash-preview
 ```
 
 Or create a `.env` file in your project root:
@@ -258,26 +273,29 @@ mmdc --version
 
 ### Mermaid Syntax Errors
 
-If OpenCode generates invalid Mermaid syntax, the tool gracefully handles the error:
+The tool automatically attempts to fix Mermaid syntax errors using OpenCode:
 
 ```bash
 📚 Composing coherent documentation...
   Rendering 2 diagram(s)...
-    ⚠ Syntax error in dataflow.mermaid:
-      Source available at dataflow.mermaid
-  ⚠ 2 diagram(s) failed (source files available)
+    ⚠ Syntax error in dataflow.mermaid, attempting auto-fix (attempt 1/2)...
+    ✓ Fixed syntax in dataflow.mermaid
+    ✓ Rendered: dataflow.mermaid → dataflow.svg (after 1 fix(es))
+  ✓ 2 diagram(s) rendered successfully
 ```
 
-**What happens:**
-- Documentation is still fully generated
-- Failed diagrams show helpful notes in `index.md` and subpages
-- Source `.mermaid` files are available for manual fixing
-- Links to Mermaid documentation provided
+**Auto-Fix Feature:**
+- Detects Mermaid rendering failures automatically
+- Uses OpenCode to analyze and fix syntax errors
+- Retries rendering up to 2 times
+- Shows progress: "attempting auto-fix (attempt X/2)"
+- Continues gracefully if auto-fix fails
 
-**To fix:**
-1. Edit the `.mermaid` file in `docs/` to fix syntax
-2. Manually render: `mmdc -i docs/diagram.mermaid -o docs/diagrams/diagram.svg`
-3. Or view in a Mermaid-compatible editor (VS Code, GitHub, etc.)
+**If auto-fix fails:**
+- Documentation is still fully generated
+- Failed diagrams show helpful notes in subpages
+- Source files available in `docs/src/raw/*.mermaid`
+- Can manually fix: `mmdc -i docs/src/raw/diagram.mermaid -o docs/diagrams/diagram.svg`
 
 ## Project Structure
 
