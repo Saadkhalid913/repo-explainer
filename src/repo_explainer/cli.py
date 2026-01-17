@@ -181,8 +181,9 @@ def analyze(
 
         console.print("[bold]Generated files:[/bold]")
         for output_type, file_path in output_files.items():
-            relative_path = file_path.relative_to(settings.output_dir)
-            console.print(f"  - {output_type}: [cyan]{relative_path}[/cyan]")
+            console.print(f"  - {output_type}: [cyan]{file_path.absolute()}[/cyan]")
+
+        console.print(f"\n[dim]Tip: Start with `cat {settings.output_dir.absolute()}/ANALYSIS_SUMMARY.md`[/dim]")
 
         if result.session_id:
             console.print(f"\n[dim]Session ID: {result.session_id}[/dim]")
