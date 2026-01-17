@@ -48,6 +48,9 @@ diagrams/
 test-output/
 generated-docs/
 
+# Cloned repositories
+tmp/
+
 # Environment
 .env
 .env.local

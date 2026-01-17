@@ -11,6 +11,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 from . import __version__
 from .config import Settings, get_settings
 from .opencode_service import OpenCodeService
+from .repository_loader import RepositoryLoader
 
 app = typer.Typer(
     name="repo-explain",
@@ -40,16 +41,12 @@ def main(
 
 @app.command()
 def analyze(
-    repo_path: Annotated[
-        Path,
+    repo_path_or_url: Annotated[
+        str,
         typer.Argument(
-            help="Path to the repository to analyze",
-            exists=True,
-            file_okay=False,
-            dir_okay=True,
-            resolve_path=True,
+            help="Path to repository or Git URL (e.g., https://github.com/user/repo)",
         ),
-    ] = Path("."),
+    ] = ".",
     depth: Annotated[
         str,
         typer.Option(
@@ -64,6 +61,13 @@ def analyze(
             help="Output directory for generated documentation",
         ),
     ] = None,
+    force_clone: Annotated[
+        bool,
+        typer.Option(
+            "--force-clone",
+            help="Force re-clone if repository already exists in tmp",
+        ),
+    ] = False,
     verbose: Annotated[
         bool,
         typer.Option("--verbose", "-V", help="Enable verbose output"),
@@ -71,6 +75,14 @@ def analyze(
 ) -> None:
     """
     Analyze a repository and generate documentation.
+
+    Accepts either a local path or a Git URL. Git URLs will be cloned to ./tmp/owner/repo.
+
+    Examples:
+        repo-explain analyze .
+        repo-explain analyze ./my-project
+        repo-explain analyze https://github.com/torvalds/linux
+        repo-explain analyze git@github.com:user/repo.git
 
     Invokes OpenCode to perform AI-powered analysis and produces:
     - Architecture overview (architecture.md)
@@ -84,6 +96,22 @@ def analyze(
         settings.verbose = True
     if output:
         settings.output_dir = output
+
+    # Load repository (clone if it's a Git URL)
+    loader = RepositoryLoader()
+    try:
+        repo_path = loader.load(repo_path_or_url, force_clone=force_clone)
+    except ValueError as e:
+        console.print(f"[red]Error loading repository:[/red] {e}")
+        raise typer.Exit(1)
+    except Exception as e:
+        console.print(f"[red]Unexpected error:[/red] {e}")
+        raise typer.Exit(1)
+
+    # Verify the path exists
+    if not repo_path.exists():
+        console.print(f"[red]Error:[/red] Repository path does not exist: {repo_path}")
+        raise typer.Exit(1)
 
     # Display header
     console.print(

@@ -71,6 +71,38 @@ fi
 echo ""
 run_test "Custom output directory" "mkdir -p /tmp/test-repo-explain && repo-explain analyze . --output /tmp/test-repo-explain --depth quick 2>&1 | head -1 > /dev/null && [ -d /tmp/test-repo-explain ]"
 
+# Test 8: Git URL cloning
+echo ""
+echo -n "Test $((test_count + 1)): Git URL cloning (may take 30-60s)... "
+test_count=$((test_count + 1))
+# Clean up first
+rm -rf tmp/octocat 2>/dev/null || true
+if repo-explain analyze https://github.com/octocat/Hello-World --depth quick 2>&1 | grep -q "Clone successful"; then
+    if [ -d "tmp/octocat/Hello-World" ]; then
+        echo -e "${GREEN}PASS${NC}"
+        pass_count=$((pass_count + 1))
+    else
+        echo -e "${RED}FAIL${NC}"
+        echo "  Clone succeeded but directory not found"
+        fail_count=$((fail_count + 1))
+    fi
+else
+    echo -e "${RED}FAIL${NC}"
+    echo "  Clone did not succeed"
+    fail_count=$((fail_count + 1))
+fi
+
+# Test 9: Clone reuse
+echo ""
+run_test "Clone reuse" "repo-explain analyze https://github.com/octocat/Hello-World --depth quick 2>&1 | grep -q 'Using existing clone'"
+
+# Test 10: Force re-clone
+echo ""
+run_test "Force re-clone" "repo-explain analyze https://github.com/octocat/Hello-World --force-clone --depth quick 2>&1 | grep -q 'Removing existing clone'"
+
+# Clean up test clone
+rm -rf tmp/octocat 2>/dev/null || true
+
 # Summary
 echo ""
 echo "=========================================="

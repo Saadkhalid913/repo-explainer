@@ -55,6 +55,8 @@
 ### CLI Module
 - [x] Typer-based CLI entry point (`cli.py`)
 - [x] `analyze` command with depth options (quick/standard/deep)
+- [x] `analyze` command accepts both local paths and Git URLs
+- [x] `--force-clone` flag for re-cloning Git repositories
 - [x] `update` command placeholder
 - [x] Rich terminal feedback (panels, progress spinners)
 - [ ] Logging configuration
@@ -69,9 +71,16 @@
 - [ ] Session ID tracking and persistence
 
 ### Repository Loader
-- [ ] Local path resolution
-- [ ] Git clone helper
-- [ ] Authentication stub
+- [x] Local path resolution
+- [x] Git clone helper with GitPython
+- [x] Git URL detection (HTTPS, SSH, Git protocol)
+- [x] Git URL parsing (extract owner/repo from URL)
+- [x] Automatic cloning to `./tmp/owner/repo`
+- [x] Clone reuse (don't re-clone if already exists)
+- [x] Force re-clone support
+- [x] Cleanup utilities for removing clones
+- [x] Integration with CLI analyze command
+- [ ] Authentication stub (currently uses system Git credentials)
 
 ### Analyzer
 - [ ] Prompt preparation for OpenCode
