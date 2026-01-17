@@ -2,6 +2,7 @@
 
 import re
 import shutil
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Tuple
 from urllib.parse import urlparse
@@ -10,6 +11,16 @@ from git import Repo
 from rich.console import Console
 
 console = Console()
+
+
+@dataclass
+class RepoMetadata:
+    """Metadata about a loaded repository."""
+
+    name: str  # Repository name (e.g., "auth-service" or "linux")
+    path: Path  # Local path to repository
+    url: str | None  # Git URL if remote, None if local
+    is_remote: bool  # Whether cloned from remote
 
 
 class RepositoryLoader:
@@ -186,6 +197,51 @@ class RepositoryLoader:
         else:
             # Return local path as-is
             return Path(path_or_url).resolve()
+
+    def load_repository(self, path_or_url: str, force_clone: bool = False) -> RepoMetadata:
+        """
+        Load a repository and return metadata.
+
+        If a Git URL is provided, the repository will be cloned to ./tmp/owner/repo.
+        If a local path is provided, it will be resolved.
+
+        Args:
+            path_or_url: Local path or Git URL
+            force_clone: If True, remove and re-clone existing repositories
+
+        Returns:
+            RepoMetadata with name, path, url, and is_remote
+
+        Examples:
+            >>> loader = RepositoryLoader()
+            >>> meta = loader.load_repository("https://github.com/user/my-service")
+            >>> meta.name
+            'my-service'
+            >>> meta.is_remote
+            True
+        """
+        is_remote = self.is_git_url(path_or_url)
+
+        if is_remote:
+            # Clone remote repository
+            repo_path = self.clone_repository(path_or_url, force=force_clone)
+            owner, repo_name = self.parse_git_url(path_or_url)
+            return RepoMetadata(
+                name=repo_name,
+                path=repo_path,
+                url=path_or_url,
+                is_remote=True,
+            )
+        else:
+            # Resolve local path
+            repo_path = Path(path_or_url).resolve()
+            repo_name = repo_path.name
+            return RepoMetadata(
+                name=repo_name,
+                path=repo_path,
+                url=None,
+                is_remote=False,
+            )
 
     def cleanup(self, owner: str | None = None, repo: str | None = None) -> None:
         """

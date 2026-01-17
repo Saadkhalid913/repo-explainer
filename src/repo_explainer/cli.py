@@ -43,11 +43,18 @@ def main(
 @app.command()
 def analyze(
     repo_path_or_url: Annotated[
-        str,
+        Optional[str],
         typer.Argument(
             help="Path to repository or Git URL (e.g., https://github.com/user/repo)",
         ),
-    ] = ".",
+    ] = None,
+    repos: Annotated[
+        Optional[list[str]],
+        typer.Option(
+            "--file", "-f",
+            help="Repository path or URL (can be specified multiple times for multi-repo analysis)",
+        ),
+    ] = None,
     depth: Annotated[
         str,
         typer.Option(
@@ -75,21 +82,23 @@ def analyze(
     ] = False,
 ) -> None:
     """
-    Analyze a repository and generate documentation.
+    Analyze one or more repositories and generate documentation.
 
-    Accepts either a local path or a Git URL. Git URLs will be cloned to ./tmp/owner/repo.
-
-    Examples:
+    Single repository mode (backward compatible):
         repo-explain analyze .
         repo-explain analyze ./my-project
         repo-explain analyze https://github.com/torvalds/linux
-        repo-explain analyze git@github.com:user/repo.git
+
+    Multi-repository mode (microservices):
+        repo-explain analyze -f repo1 -f repo2 -f repo3
+        repo-explain analyze -f https://github.com/user/service1 -f https://github.com/user/service2
 
     Invokes OpenCode to perform AI-powered analysis and produces:
     - Architecture overview (architecture.md)
     - Component diagrams (Mermaid format)
     - Data flow diagrams (Mermaid format)
     - Technology stack summary
+    - Multi-repo: System-wide views, service mesh, cross-service dependencies
     """
     # Update settings based on CLI options
     settings = get_settings()
@@ -97,6 +106,25 @@ def analyze(
         settings.verbose = True
     if output:
         settings.output_dir = output
+
+    # Determine mode: multi-repo or single-repo
+    if repos:
+        # Multi-repo mode
+        from .multi_repo_orchestrator import MultiRepoOrchestrator
+
+        orchestrator = MultiRepoOrchestrator(
+            repos=repos,
+            depth=depth,
+            output_dir=settings.output_dir,
+            force_clone=force_clone,
+            verbose=verbose,
+        )
+        orchestrator.run()
+        return
+
+    # Single-repo mode (backward compatible)
+    if repo_path_or_url is None:
+        repo_path_or_url = "."
 
     # Load repository (clone if it's a Git URL)
     loader = RepositoryLoader()
