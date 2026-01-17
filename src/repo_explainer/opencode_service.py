@@ -68,6 +68,7 @@ class OpenCodeService:
             "run",
             prompt,
             "--format", self.settings.opencode_output_format,
+            "--model", self.settings.opencode_model,
         ]
 
         if command:

@@ -2,7 +2,7 @@
 
 **Technologies**
 - Python 3.9+ core, `typer` for CLI, `GitPython` for repository operations, `pydantic`/`dataclasses` for structs, `PyYAML` for config, `rich` for terminal feedback.
-- `openrouter` client or `requests` wrapper for Gemini 2.5 Flash access and prompt submission.
+- OpenCode CLI configured with OpenRouter’s Gemini 3 Flash Preview model (`opencode ... --model openrouter/google/gemini-3-flash-preview`).
 - `tree-sitter` (or `ast`/`lib2to3` as fallback) for language parsing of Python and JS/TS.
 - Mermaid diagram generation via Mermaid CLI invocation (optional) and plain `.mmd` writers.
 - OpenCode CLI (`opencode -p ... -f json`) for headless repo analysis and repeatable custom commands stored in `.opencode/commands`.
@@ -38,7 +38,7 @@
 - Baseline `.opencode/commands/analyze-architecture.md` (and `quick/standard/deep` variants) that wrap the OpenCode prompt shown in research, outputting `architecture.md`, `components.mermaid`, `dataflow.mermaid`, and `tech-stack.txt`, plus documented Claude Code equivalents.
 - Documented Claude Code CLI fallback (`claude -p ... --allowedTools Read,Glob,Grep,Edit,Write --output-format json`) for the same deliverables when OpenCode is unavailable.
 - Support for Python and JavaScript/TypeScript repositories only.
-- Initial prompts tuned for structure detection, verifying outputs against static summaries.
+- Initial prompts tuned for structure detection, verifying outputs against static summaries using Gemini 3 Flash Preview defaults.
 
 ## Diagrams
 - Backend architecture: `diagrams/stage_1/backend.mmd`
@@ -120,4 +120,4 @@
 - [ ] `.opencode/commands/analyze-architecture.md`
 - [ ] Quick/standard/deep command variants
 - [ ] Claude Code equivalent documentation
-- [ ] Verified prompts for Gemini 2.5 Flash
+- [ ] Verified prompts for Gemini 3 Flash Preview

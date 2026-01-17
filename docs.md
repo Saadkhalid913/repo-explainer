@@ -206,6 +206,7 @@ Configuration is managed via `pydantic-settings` and can be set through environm
 |----------|------|---------|-------------|
 | `REPO_EXPLAINER_OPENCODE_BINARY` | string | `opencode` | Path to OpenCode CLI binary |
 | `REPO_EXPLAINER_OPENCODE_OUTPUT_FORMAT` | string | `json` | Output format from OpenCode |
+| `REPO_EXPLAINER_OPENCODE_MODEL` | string | `openrouter/google/gemini-3-flash-preview` | Default OpenCode model (`provider/model`) |
 | `REPO_EXPLAINER_ANALYSIS_DEPTH` | string | `standard` | Default analysis depth |
 | `REPO_EXPLAINER_OUTPUT_DIR` | path | `docs/` | Default output directory |
 | `REPO_EXPLAINER_DIAGRAMS_DIR` | path | `diagrams/` | Diagram output directory |
@@ -214,6 +215,7 @@ Configuration is managed via `pydantic-settings` and can be set through environm
 **Example `.env` file:**
 ```env
 REPO_EXPLAINER_OPENCODE_BINARY=/usr/local/bin/opencode
+REPO_EXPLAINER_OPENCODE_MODEL=openrouter/google/gemini-3-flash-preview
 REPO_EXPLAINER_VERBOSE=true
 REPO_EXPLAINER_OUTPUT_DIR=./generated-docs
 ```

@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     # OpenCode settings
     opencode_binary: str = Field(default="opencode", description="Path to OpenCode binary")
     opencode_output_format: str = Field(default="json", description="OpenCode output format")
+    opencode_model: str = Field(
+        default="openrouter/google/gemini-3-flash-preview",
+        description="OpenCode model identifier (provider/model)",
+    )
 
     # Analysis settings
     analysis_depth: Literal["quick", "standard", "deep"] = Field(

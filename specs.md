@@ -13,7 +13,7 @@ This document summarizes the capabilities and deliverables captured in `stages/s
 **Deliverables**
 - `repo-explainer analyze` and `repo-explainer update` producing markdown docs, logs, and at least one architecture diagram per run by calling OpenCode (`project:analyze-architecture`).
 - Baseline `.opencode/commands/analyze-architecture.md` plus `quick/standard/deep` variants, alongside documented Claude Code equivalents using `--output-format json`.
-- Verified prompt templates for Gemini 2.5 Flash focused on structure detection and compatible with both OpenCode and Claude Code flows.
+- Verified prompt templates for Gemini 3 Flash Preview focused on structure detection and compatible with both OpenCode and Claude Code flows.
 - Official support for Python and JavaScript/TypeScript repositories only.
 
 
