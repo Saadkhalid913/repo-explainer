@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Output Manager - Repository Documentation</title>
+    <style>
+        
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
+            line-height: 1.6;
+            color: #24292e;
+            background: #f6f8fa;
+        }
+
+        .container {
+            display: flex;
+            min-height: 100vh;
+        }
+
+        .sidebar {
+            width: 280px;
+            background: #ffffff;
+            border-right: 1px solid #e1e4e8;
+            padding: 2rem 0;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .nav-header {
+            padding: 0 1.5rem 1.5rem;
+            border-bottom: 1px solid #e1e4e8;
+            margin-bottom: 1rem;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: #0366d6;
+            text-decoration: none;
+            display: block;
+        }
+
+        .logo:hover {
+            color: #0256bd;
+        }
+
+        .nav-links {
+            flex: 1;
+            padding: 0 1rem;
+        }
+
+        .nav-item {
+            display: block;
+            padding: 0.75rem 1rem;
+            color: #586069;
+            text-decoration: none;
+            border-radius: 6px;
+            margin-bottom: 0.25rem;
+            transition: all 0.2s;
+        }
+
+        .nav-item:hover {
+            background: #f6f8fa;
+            color: #0366d6;
+        }
+
+        .nav-item.active {
+            background: #0366d6;
+            color: white;
+        }
+
+        .nav-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid #e1e4e8;
+            margin-top: 1rem;
+            color: #586069;
+            text-align: center;
+        }
+
+        .content {
+            flex: 1;
+            padding: 3rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .markdown-body {
+            background: white;
+            padding: 3rem;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .markdown-body h1 {
+            font-size: 2.5rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 2px solid #e1e4e8;
+            color: #24292e;
+        }
+
+        .markdown-body h2 {
+            font-size: 2rem;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.3rem;
+            border-bottom: 1px solid #e1e4e8;
+            color: #24292e;
+        }
+
+        .markdown-body h3 {
+            font-size: 1.5rem;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            color: #24292e;
+        }
+
+        .markdown-body p {
+            margin-bottom: 1rem;
+            line-height: 1.8;
+        }
+
+        .markdown-body a {
+            color: #0366d6;
+            text-decoration: none;
+        }
+
+        .markdown-body a:hover {
+            text-decoration: underline;
+        }
+
+        .markdown-body code {
+            background: #f6f8fa;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+            font-size: 0.9em;
+        }
+
+        .markdown-body pre {
+            background: #f6f8fa;
+            padding: 1rem;
+            border-radius: 6px;
+            overflow-x: auto;
+            margin: 1rem 0;
+            border: 1px solid #e1e4e8;
+        }
+
+        .markdown-body pre code {
+            background: none;
+            padding: 0;
+            font-size: 0.85em;
+            line-height: 1.5;
+        }
+
+        .markdown-body ul, .markdown-body ol {
+            margin-left: 2rem;
+            margin-bottom: 1rem;
+        }
+
+        .markdown-body li {
+            margin-bottom: 0.5rem;
+        }
+
+        .markdown-body blockquote {
+            border-left: 4px solid #dfe2e5;
+            padding-left: 1rem;
+            margin: 1rem 0;
+            color: #6a737d;
+        }
+
+        .markdown-body table {
+            border-collapse: collapse;
+            width: 100%;
+            margin: 1rem 0;
+        }
+
+        .markdown-body th, .markdown-body td {
+            border: 1px solid #e1e4e8;
+            padding: 0.75rem;
+            text-align: left;
+        }
+
+        .markdown-body th {
+            background: #f6f8fa;
+            font-weight: 600;
+        }
+
+        .markdown-body img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 6px;
+            margin: 1rem 0;
+        }
+
+        .markdown-body hr {
+            border: none;
+            border-top: 2px solid #e1e4e8;
+            margin: 2rem 0;
+        }
+
+        .markdown-body details {
+            margin: 1rem 0;
+            padding: 1rem;
+            border: 1px solid #e1e4e8;
+            border-radius: 6px;
+        }
+
+        .markdown-body summary {
+            cursor: pointer;
+            font-weight: 600;
+            margin: -1rem;
+            padding: 1rem;
+            background: #f6f8fa;
+            border-radius: 6px 6px 0 0;
+        }
+
+        .markdown-body summary:hover {
+            background: #e1e4e8;
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+            }
+
+            .container {
+                flex-direction: column;
+            }
+
+            .content {
+                padding: 1.5rem;
+            }
+
+            .markdown-body {
+                padding: 1.5rem;
+            }
+        }
+        
+        
+        .update-banner {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+        }
+
+        .update-banner-old {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        }
+
+        .update-banner-content {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .update-badge {
+            background: rgba(255,255,255,0.2);
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .update-time {
+            font-weight: 500;
+        }
+
+        .update-details {
+            opacity: 0.9;
+        }
+
+        .update-commits {
+            opacity: 0.8;
+            font-family: 'SFMono-Regular', Consolas, monospace;
+            font-size: 0.85em;
+        }
+
+        .update-banner-close {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .update-banner-close:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        @media (max-width: 768px) {
+            .update-banner {
+                flex-direction: column;
+                gap: 0.5rem;
+                text-align: center;
+            }
+
+            .update-banner-content {
+                justify-content: center;
+            }
+
+            .update-commits {
+                display: none;
+            }
+        }
+        
+    </style>
+</head>
+<body>
+    
+    <div class="container">
+        <nav class="sidebar">
+            <div class="nav-header">
+                <a href="../index.html" class="logo">📚 Documentation</a>
+            </div>
+            <div class="nav-links">
+                <a href="../index.html" class="nav-item ">
+                    🏠 Home
+                </a>
+                <a href="../components/overview.html" class="nav-item active">
+                    📦 Components
+                </a>
+                <a href="../dataflow/overview.html" class="nav-item ">
+                    🔄 Data Flow
+                </a>
+                <a href="../dependencies/overview.html" class="nav-item ">
+                    🔗 Dependencies
+                </a>
+                <a href="../api/overview.html" class="nav-item ">
+                    🌐 API
+                </a>
+                <a href="../tech-stack/overview.html" class="nav-item ">
+                    🛠️ Tech Stack
+                </a>
+                <a href="../updates.html" class="nav-item ">
+                    📋 Update History
+                </a>
+            </div>
+            <div class="nav-footer">
+                <small>Generated by repo-explainer</small>
+            </div>
+        </nav>
+        <main class="content">
+            <article class="markdown-body">
+                <h1 id="output-manager">Output Manager</h1>
+<p><strong>Type</strong>: <code>module</code><br />
+<strong>ID</strong>: <code>output-manager</code><br />
+<strong>Location</strong>: <code>src/repo_explainer/output_manager.py:1-268</code>  </p>
+<h2 id="overview">Overview</h2>
+<p>Handles writing analysis results and managing doc output structure.</p>
+<h2 id="key-functions">Key Functions</h2>
+<h3 id="write_analysis_result"><code>write_analysis_result</code></h3>
+<p><strong>Location</strong>: <code>src/repo_explainer/output_manager.py:51-127</code><br />
+<strong>Signature</strong>:  </p>
+<div class="highlight"><pre><span></span><code>def write_analysis_result(self, result, repo_path, depth)
+</code></pre></div>
+
+<p>Saves analysis output and orchestrates documentation composition.</p>
+<h2 id="dependencies">Dependencies</h2>
+<h3 id="internal-dependencies">Internal Dependencies</h3>
+<p>This component depends on:</p>
+<ul>
+<li><a href="doc-composer.html"><code>Document Composer</code></a> (<code>doc-composer</code>)</li>
+</ul>
+<h2 id="used-by">Used By</h2>
+<p>This component is used by:</p>
+<ul>
+<li><a href="cli.html"><code>CLI Module</code></a></li>
+<li><a href="orchestrator.html"><code>Orchestrator</code></a></li>
+</ul>
+<hr />
+<p><em>Generated from component analysis</em></p>
+            </article>
+        </main>
+    </div>
+</body>
+</html>

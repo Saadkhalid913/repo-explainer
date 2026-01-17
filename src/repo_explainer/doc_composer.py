@@ -100,6 +100,57 @@ class DocComposer:
 
         return composed_files
 
+    def _clean_mermaid_file(self, mermaid_file: Path) -> bool:
+        """
+        Clean a mermaid file by removing markdown code fences if present.
+
+        OpenCode sometimes generates .mermaid files wrapped in markdown code blocks.
+        This strips those fences so the file contains only raw mermaid syntax.
+
+        Args:
+            mermaid_file: Path to the .mermaid file
+
+        Returns:
+            True if file was cleaned, False if no cleaning needed
+        """
+        try:
+            content = mermaid_file.read_text().strip()
+
+            # Check if file starts with markdown code fence
+            if content.startswith("```"):
+                # Remove opening fence (```mermaid or ```)
+                lines = content.split("\n")
+                
+                # Find first line that's not a code fence
+                start_idx = 0
+                for i, line in enumerate(lines):
+                    if line.strip().startswith("```"):
+                        start_idx = i + 1
+                        # Only skip the first fence
+                        break
+                
+                # Find closing fence
+                end_idx = len(lines)
+                for i in range(len(lines) - 1, start_idx - 1, -1):
+                    if lines[i].strip() == "```":
+                        end_idx = i
+                        break
+                
+                # Extract content between fences
+                cleaned_lines = lines[start_idx:end_idx]
+                cleaned_content = "\n".join(cleaned_lines).strip()
+                
+                # Write back cleaned content
+                if cleaned_content:
+                    mermaid_file.write_text(cleaned_content)
+                    console.print(f"[dim]    ✓ Cleaned markdown fences from {mermaid_file.name}[/dim]")
+                    return True
+
+            return False
+        except Exception as e:
+            console.print(f"[yellow]    Warning: Could not clean {mermaid_file.name}: {e}[/yellow]")
+            return False
+
     def _render_diagrams(self) -> dict[str, Path]:
         """
         Render Mermaid diagrams to SVG format.
@@ -117,6 +168,10 @@ class DocComposer:
             return diagram_files
 
         console.print(f"[dim]  Rendering {len(mermaid_files)} diagram(s)...[/dim]")
+
+        # First, clean all mermaid files (remove markdown code fences if present)
+        for mermaid_file in mermaid_files:
+            self._clean_mermaid_file(mermaid_file)
 
         success_count = 0
         failed_count = 0

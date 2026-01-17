@@ -1,0 +1,35 @@
+graph TD
+    subgraph "Presentation Layer"
+        CLI[CLI Module<br/>src/repo_explainer/cli.py]
+    end
+
+    subgraph "Orchestration Layer"
+        ORC[Orchestrator<br/>src/repo_explainer/orchestrator.py]
+    end
+
+    subgraph "Service & AI Layer"
+        RL[Repository Loader<br/>src/repo_explainer/repository_loader.py]
+        OCS[OpenCode Service<br/>src/repo_explainer/opencode_service.py]
+        OCR[OpenCode Runner<br/>src/repo_explainer/opencode_runner.py]
+        CR[Claude Runner<br/>src/repo_explainer/opencode_runner.py]
+    end
+
+    subgraph "Output & Composition Layer"
+        OM[Output Manager<br/>src/repo_explainer/output_manager.py]
+        DC[Doc Composer<br/>src/repo_explainer/doc_composer.py]
+        HG[HTML Generator<br/>src/repo_explainer/html_generator.py]
+    end
+
+    CLI --> RL
+    CLI --> ORC
+    CLI --> OCS
+    CLI --> OM
+    CLI --> HG
+    ORC --> RL
+    ORC --> OCR
+    ORC --> OM
+    OCR --> CR
+    OCS --> OCR
+    OM --> DC
+    HG --> OM
+    DC --> OCS

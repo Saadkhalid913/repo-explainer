@@ -376,25 +376,361 @@ def update(
             resolve_path=True,
         ),
     ] = Path("."),
+    commits: Annotated[
+        int,
+        typer.Option(
+            "--commits", "-n",
+            help="Number of recent commits to check for changes",
+        ),
+    ] = 10,
+    since: Annotated[
+        Optional[str],
+        typer.Option(
+            "--since", "-s",
+            help="Commit SHA to check changes since (overrides --commits)",
+        ),
+    ] = None,
+    auto: Annotated[
+        bool,
+        typer.Option(
+            "--auto",
+            help="Automatically detect changes since last documentation update",
+        ),
+    ] = False,
+    branch: Annotated[
+        str,
+        typer.Option(
+            "--branch", "-b",
+            help="Branch to track for changes (default: main)",
+        ),
+    ] = "main",
+    output: Annotated[
+        Optional[Path],
+        typer.Option(
+            "--output", "-o",
+            help="Output directory for updated documentation",
+        ),
+    ] = None,
+    generate_html: Annotated[
+        bool,
+        typer.Option(
+            "--generate-html",
+            help="Regenerate HTML documentation after update",
+        ),
+    ] = False,
     verbose: Annotated[
         bool,
         typer.Option("--verbose", "-V", help="Enable verbose output"),
     ] = False,
 ) -> None:
     """
-    Update existing documentation for a repository.
+    Update existing documentation based on recent commits on main branch.
 
-    Re-runs analysis on changed files and updates documentation accordingly.
+    Always tracks the specified branch (main by default), regardless of what
+    branch you're currently on. Only updates docs for files changed on that branch.
+
+    Examples:
+        repo-explain update .
+        repo-explain update . --commits 5
+        repo-explain update . --since abc123f
+        repo-explain update . --auto
+        repo-explain update . --generate-html
+        repo-explain update . --branch develop
     """
+    settings = get_settings()
+    if verbose:
+        settings.verbose = True
+    if output:
+        settings.output_dir = output
+
     console.print(
         Panel.fit(
-            "[bold yellow]Update Command[/bold yellow]\n"
-            "[dim]This command will be implemented in a future iteration.[/dim]",
-            border_style="yellow",
+            f"[bold blue]Repository Explainer[/bold blue] v{__version__}\n"
+            f"Updating docs for: [cyan]{repo_path}[/cyan]\n"
+            f"Tracking branch: [magenta]{branch}[/magenta]",
+            border_style="blue",
         )
     )
-    console.print(f"\nRepository: [cyan]{repo_path}[/cyan]")
-    console.print("\n[yellow]Coming soon![/yellow] For now, use 'analyze' to regenerate docs.")
+
+    # Verify it's a git repository
+    loader = RepositoryLoader()
+    if not loader.is_git_repo(repo_path):
+        console.print("[red]Error:[/red] Not a git repository. Update requires git history.")
+        console.print("[dim]Tip: Use 'analyze' for initial documentation generation.[/dim]")
+        raise typer.Exit(1)
+
+    # Determine what to check for changes
+    since_commit = since
+    if auto:
+        # Try to find last documentation update commit
+        since_commit = loader.get_last_doc_update_commit(repo_path, settings.output_dir)
+        if since_commit:
+            console.print(f"[dim]Auto-detected: checking changes since {since_commit[:8]} on {branch}[/dim]")
+        else:
+            console.print(f"[yellow]No previous update marker found. Checking last {commits} commits on {branch}.[/yellow]")
+
+    # Get changed files from the target branch (main by default)
+    with Progress(
+        SpinnerColumn(),
+        TextColumn("[progress.description]{task.description}"),
+        console=console,
+    ) as progress:
+        task = progress.add_task(f"Detecting changed files on {branch}...", total=None)
+        changed_files = loader.get_changed_files(
+            repo_path,
+            since_commit=since_commit,
+            count=commits,
+            branch=branch,
+        )
+        progress.update(task, completed=True)
+
+    if not changed_files:
+        console.print("\n[green]No changed files detected.[/green] Documentation is up to date!")
+        console.print("[dim]Tip: Use 'analyze' to regenerate docs from scratch.[/dim]")
+        raise typer.Exit(0)
+
+    # Show changed files
+    console.print(f"\n[bold]Found {len(changed_files)} changed file(s):[/bold]")
+    for f in changed_files[:10]:
+        console.print(f"  - [cyan]{f}[/cyan]")
+    if len(changed_files) > 10:
+        console.print(f"  [dim]... and {len(changed_files) - 10} more[/dim]")
+
+    # Get recent commits for context (from the target branch)
+    recent_commits = loader.get_recent_commits(repo_path, count=min(commits, 5), branch=branch)
+    if recent_commits:
+        console.print(f"\n[bold]Recent commits on {branch}:[/bold]")
+        for commit in recent_commits[:3]:
+            console.print(f"  [dim]{commit.short_sha}[/dim] {commit.message[:50]}")
+
+    # Initialize OpenCode service
+    opencode = OpenCodeService(repo_path)
+
+    if not opencode.check_available():
+        console.print(
+            "\n[yellow]Warning:[/yellow] OpenCode CLI not found. "
+            "Please install OpenCode or ensure it's in your PATH."
+        )
+        raise typer.Exit(1)
+
+    # Create event callback for verbose mode
+    def handle_opencode_event(event: dict) -> None:
+        """Handle OpenCode JSON events in verbose mode."""
+        if not verbose:
+            return
+
+        event_type = event.get("type")
+        if event_type == "tool_use":
+            part = event.get("part", {})
+            tool = part.get("tool")
+            state = part.get("state", {})
+            input_data = state.get("input", {})
+
+            if tool == "read":
+                file_path = input_data.get("filePath", input_data.get("file_path", ""))
+                if file_path:
+                    console.print(f"  [dim]📄 Reading:[/dim] [cyan]{file_path}[/cyan]")
+            elif tool == "write":
+                file_path = input_data.get("filePath", input_data.get("file_path", ""))
+                if file_path:
+                    console.print(f"  [dim]✏️  Writing:[/dim] [green]{file_path}[/green]")
+
+    # Run incremental analysis
+    console.print("\n[bold]Running incremental analysis...[/bold]\n")
+
+    if verbose:
+        console.print("[dim]Verbose mode: Showing OpenCode activity...[/dim]\n")
+        result = opencode.analyze_changes(
+            changed_files=changed_files,
+            existing_docs_path=settings.output_dir,
+            event_callback=handle_opencode_event,
+        )
+    else:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task("Analyzing changes...", total=None)
+            result = opencode.analyze_changes(
+                changed_files=changed_files,
+                existing_docs_path=settings.output_dir,
+            )
+            progress.update(task, completed=True)
+
+    if result.success:
+        console.print("\n[green]Documentation updated![/green]\n")
+
+        # Write updated outputs
+        output_manager = OutputManager(settings.output_dir)
+        output_files = output_manager.write_analysis_result(
+            result=result,
+            repo_path=repo_path,
+            depth="update",
+        )
+
+        # Save the target branch's commit as the update marker
+        saved_commit = loader.save_doc_update_commit(repo_path, settings.output_dir, branch=branch)
+        if saved_commit:
+            console.print(f"[dim]Saved update marker: {saved_commit[:8]} ({branch})[/dim]")
+
+        # Record the update in history with full commit info
+        _record_update_history(
+            output_dir=settings.output_dir,
+            changed_files=changed_files,
+            commits=recent_commits[:5],  # Pass full CommitInfo objects
+        )
+
+        console.print(f"[bold]Output saved to:[/bold] [cyan]{output_manager.get_output_location()}[/cyan]\n")
+
+        # Generate HTML if requested
+        if generate_html:
+            console.print("\n" + "="*60)
+            try:
+                console.print(
+                    Panel.fit(
+                        "[bold blue]HTML Regeneration[/bold blue]\n"
+                        "Updating HTML documentation...",
+                        border_style="blue",
+                    )
+                )
+
+                generator = HTMLGenerator(settings.output_dir)
+                html_dir = generator.generate()
+                console.print(f"\n[green]✓[/green] HTML updated at: [cyan]{html_dir}[/cyan]")
+            except Exception as e:
+                console.print(f"\n[red]Error generating HTML:[/red] {e}")
+
+        console.print("\n[dim]💡 Tip: Run with --generate-html to update the HTML docs[/dim]")
+    else:
+        console.print(f"\n[red]Update failed:[/red] {result.error}")
+        if verbose and result.output:
+            console.print(f"\n[dim]Output: {result.output[:500]}...[/dim]")
+        raise typer.Exit(1)
+
+
+def _categorize_files(files: list[str]) -> dict[str, list[str]]:
+    """Categorize files by component/type for better readability."""
+    categories = {
+        "components": [],
+        "cli": [],
+        "docs": [],
+        "config": [],
+        "tests": [],
+        "other": [],
+    }
+    
+    for f in files:
+        if "component" in f.lower() or "service" in f.lower():
+            categories["components"].append(f)
+        elif "cli" in f.lower() or "command" in f.lower():
+            categories["cli"].append(f)
+        elif f.endswith(".md") or "doc" in f.lower() or "readme" in f.lower():
+            categories["docs"].append(f)
+        elif "config" in f.lower() or "settings" in f.lower() or f.endswith(".toml") or f.endswith(".yaml") or f.endswith(".json"):
+            categories["config"].append(f)
+        elif "test" in f.lower():
+            categories["tests"].append(f)
+        else:
+            categories["other"].append(f)
+    
+    # Remove empty categories
+    return {k: v for k, v in categories.items() if v}
+
+
+def _generate_update_summary(changed_files: list[str], commits: list) -> str:
+    """Generate a human-readable summary of what changed."""
+    categories = _categorize_files(changed_files)
+    
+    summary_parts = []
+    
+    if categories.get("components"):
+        count = len(categories["components"])
+        summary_parts.append(f"{count} component{'s' if count > 1 else ''} updated")
+    
+    if categories.get("cli"):
+        summary_parts.append("CLI changes")
+    
+    if categories.get("docs"):
+        count = len(categories["docs"])
+        summary_parts.append(f"{count} doc{'s' if count > 1 else ''} modified")
+    
+    if categories.get("config"):
+        summary_parts.append("configuration changes")
+    
+    if categories.get("tests"):
+        summary_parts.append("test updates")
+    
+    if not summary_parts:
+        summary_parts.append(f"{len(changed_files)} files changed")
+    
+    return ", ".join(summary_parts).capitalize()
+
+
+def _record_update_history(
+    output_dir: Path,
+    changed_files: list[str],
+    commits: list,  # List of CommitInfo objects
+) -> None:
+    """
+    Record an update in the history file with meaningful summaries.
+
+    Args:
+        output_dir: Documentation output directory
+        changed_files: List of files that were updated
+        commits: List of CommitInfo objects with full commit details
+    """
+    import json
+    from datetime import datetime
+
+    history_file = output_dir / ".repo-explainer" / "updates.json"
+    history_file.parent.mkdir(parents=True, exist_ok=True)
+
+    # Load existing history
+    history = []
+    if history_file.exists():
+        try:
+            history = json.loads(history_file.read_text())
+        except json.JSONDecodeError:
+            history = []
+
+    # Categorize files for better display
+    categories = _categorize_files(changed_files)
+    
+    # Generate human-readable summary
+    summary = _generate_update_summary(changed_files, commits)
+    
+    # Extract commit messages (the actual useful info for engineers)
+    commit_details = []
+    for c in commits[:5]:  # Limit to 5 commits
+        if hasattr(c, 'message'):
+            commit_details.append({
+                "sha": c.short_sha,
+                "message": c.message[:100],  # First 100 chars
+                "author": c.author,
+                "date": c.date.isoformat() if hasattr(c.date, 'isoformat') else str(c.date),
+            })
+        elif isinstance(c, str):
+            # Fallback for plain SHA strings
+            commit_details.append({"sha": c, "message": "", "author": "", "date": ""})
+
+    # Add new entry with rich information
+    entry = {
+        "timestamp": datetime.now().isoformat(),
+        "type": "incremental",
+        "summary": summary,
+        "files_changed": len(changed_files),
+        "categories": categories,
+        "files": changed_files[:20],  # Limit to first 20
+        "commits": commit_details,
+    }
+    history.insert(0, entry)
+
+    # Keep only last 50 updates
+    history = history[:50]
+
+    # Save
+    history_file.write_text(json.dumps(history, indent=2))
 
 
 @app.command()

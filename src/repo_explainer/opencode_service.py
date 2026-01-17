@@ -12,6 +12,7 @@ from .config import get_settings
 from .prompts import (
     get_architecture_prompt,
     get_dependency_mapping_prompt,
+    get_incremental_update_prompt,
     get_pattern_detection_prompt,
     get_quick_scan_prompt,
 )
@@ -225,6 +226,45 @@ class OpenCodeService:
             OpenCodeResult with dependency analysis and diagrams
         """
         prompt = get_dependency_mapping_prompt()
+        return self.run_command(prompt, event_callback=event_callback)
+
+    def analyze_changes(
+        self,
+        changed_files: list[str],
+        existing_docs_path: Path | None = None,
+        event_callback: Callable[[dict], None] | None = None,
+    ) -> OpenCodeResult:
+        """
+        Run incremental analysis on changed files.
+
+        Uses the incremental_update prompt to analyze only the files that
+        have changed since the last documentation update. More efficient
+        than full re-analysis for small changes.
+
+        Args:
+            changed_files: List of file paths that changed
+            existing_docs_path: Path to existing documentation (for context)
+            event_callback: Optional callback for streaming events
+
+        Returns:
+            OpenCodeResult with updated artifacts
+        """
+        # Check for existing components.json for context
+        components_path = None
+        if existing_docs_path:
+            candidate = existing_docs_path / "src" / "raw" / "components.json"
+            if candidate.exists():
+                components_path = str(candidate)
+            else:
+                # Try repo root
+                candidate = self.repo_path / "components.json"
+                if candidate.exists():
+                    components_path = str(candidate)
+
+        prompt = get_incremental_update_prompt(
+            changed_files=changed_files,
+            existing_components_path=components_path,
+        )
         return self.run_command(prompt, event_callback=event_callback)
 
     def check_available(self) -> bool:

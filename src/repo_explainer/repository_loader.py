@@ -2,14 +2,28 @@
 
 import re
 import shutil
+from dataclasses import dataclass
+from datetime import datetime
 from pathlib import Path
 from typing import Tuple
-from urllib.parse import urlparse
 
 from git import Repo
+from git.exc import InvalidGitRepositoryError
 from rich.console import Console
+from urllib.parse import urlparse
 
 console = Console()
+
+
+@dataclass
+class CommitInfo:
+    """Information about a git commit."""
+    sha: str
+    short_sha: str
+    message: str
+    author: str
+    date: datetime
+    files: list[str]
 
 
 class RepositoryLoader:
@@ -212,3 +226,219 @@ class RepositoryLoader:
             if self.tmp_dir.exists():
                 console.print(f"[yellow]Removing:[/yellow] {self.tmp_dir}")
                 shutil.rmtree(self.tmp_dir)
+
+    @staticmethod
+    def is_git_repo(path: Path) -> bool:
+        """
+        Check if a path is a valid git repository.
+
+        Args:
+            path: Path to check
+
+        Returns:
+            True if it's a git repository, False otherwise
+        """
+        try:
+            Repo(path)
+            return True
+        except InvalidGitRepositoryError:
+            return False
+
+    def get_recent_commits(
+        self,
+        repo_path: Path,
+        count: int = 10,
+        branch: str = "main",
+    ) -> list[CommitInfo]:
+        """
+        Get recent commits from a specific branch (defaults to main).
+
+        Args:
+            repo_path: Path to the git repository
+            count: Number of recent commits to retrieve
+            branch: Branch to get commits from (default: "main")
+
+        Returns:
+            List of CommitInfo objects with commit details
+        """
+        try:
+            repo = Repo(repo_path)
+            commits = []
+
+            # Try to get commits from the specified branch
+            # First try origin/branch, then local branch
+            target_ref = None
+            for ref in [f"origin/{branch}", branch]:
+                try:
+                    target_ref = repo.commit(ref)
+                    break
+                except Exception:
+                    continue
+
+            if target_ref is None:
+                console.print(f"[yellow]Warning: Could not find branch '{branch}'[/yellow]")
+                # Fall back to current HEAD
+                target_ref = repo.head.commit
+
+            for commit in repo.iter_commits(target_ref, max_count=count):
+                # Get list of files changed in this commit
+                files = list(commit.stats.files.keys())
+                
+                commits.append(CommitInfo(
+                    sha=commit.hexsha,
+                    short_sha=commit.hexsha[:8],
+                    message=commit.message.split('\n')[0].strip(),
+                    author=str(commit.author),
+                    date=commit.committed_datetime,
+                    files=files,
+                ))
+
+            return commits
+        except InvalidGitRepositoryError:
+            console.print(f"[yellow]Warning: {repo_path} is not a git repository[/yellow]")
+            return []
+        except Exception as e:
+            console.print(f"[yellow]Warning: Could not read git history: {e}[/yellow]")
+            return []
+
+    def get_changed_files(
+        self,
+        repo_path: Path,
+        since_commit: str | None = None,
+        count: int = 10,
+        branch: str = "main",
+    ) -> list[str]:
+        """
+        Get list of files changed in recent commits on a specific branch (defaults to main).
+
+        Always compares against the specified branch (main by default), regardless
+        of what branch you're currently on.
+
+        Args:
+            repo_path: Path to the git repository
+            since_commit: If provided, get changes since this commit SHA
+            count: Number of recent commits to check (if since_commit not provided)
+            branch: Branch to check for changes (default: "main")
+
+        Returns:
+            Deduplicated list of changed file paths (only files that still exist)
+        """
+        try:
+            repo = Repo(repo_path)
+            changed_files = set()
+
+            # Determine the target branch ref
+            target_ref = None
+            for ref in [f"origin/{branch}", branch]:
+                try:
+                    target_ref = ref
+                    repo.commit(ref)  # Verify it exists
+                    break
+                except Exception:
+                    continue
+
+            if target_ref is None:
+                console.print(f"[yellow]Warning: Could not find branch '{branch}', using HEAD[/yellow]")
+                target_ref = "HEAD"
+
+            if since_commit:
+                # Get diff from specific commit to the target branch
+                try:
+                    diff = repo.git.diff('--name-only', since_commit, target_ref)
+                    if diff.strip():
+                        changed_files.update(diff.strip().split('\n'))
+                except Exception as e:
+                    console.print(f"[yellow]Warning: Could not diff from {since_commit} to {target_ref}: {e}[/yellow]")
+                    return []
+            else:
+                # Get files from recent commits on the target branch
+                try:
+                    for commit in repo.iter_commits(target_ref, max_count=count):
+                        changed_files.update(commit.stats.files.keys())
+                except Exception as e:
+                    console.print(f"[yellow]Warning: Could not iterate commits on {target_ref}: {e}[/yellow]")
+                    return []
+
+            # Filter out deleted files and non-code files
+            existing_files = []
+            for f in changed_files:
+                file_path = repo_path / f
+                if file_path.exists() and file_path.is_file():
+                    # Skip common non-code files
+                    if not any(f.endswith(ext) for ext in ['.pyc', '.pyo', '.lock', '.log']):
+                        existing_files.append(f)
+
+            return sorted(existing_files)
+        except InvalidGitRepositoryError:
+            console.print(f"[yellow]Warning: {repo_path} is not a git repository[/yellow]")
+            return []
+        except Exception as e:
+            console.print(f"[yellow]Warning: Could not get changed files: {e}[/yellow]")
+            return []
+
+    def get_last_doc_update_commit(
+        self,
+        repo_path: Path,
+        docs_dir: Path,
+    ) -> str | None:
+        """
+        Find the commit SHA when documentation was last updated.
+
+        Looks for a marker file in the docs directory that stores the last commit.
+
+        Args:
+            repo_path: Path to the git repository
+            docs_dir: Path to the documentation directory
+
+        Returns:
+            Commit SHA or None if not found
+        """
+        marker_file = docs_dir / ".repo-explainer" / "last_commit.txt"
+        if marker_file.exists():
+            return marker_file.read_text().strip()
+        return None
+
+    def save_doc_update_commit(
+        self,
+        repo_path: Path,
+        docs_dir: Path,
+        branch: str = "main",
+    ) -> str | None:
+        """
+        Save the specified branch's latest commit as the last documentation update point.
+
+        Args:
+            repo_path: Path to the git repository
+            docs_dir: Path to the documentation directory
+            branch: Branch to save the commit from (default: "main")
+
+        Returns:
+            The commit SHA that was saved, or None on error
+        """
+        try:
+            repo = Repo(repo_path)
+            
+            # Get the commit SHA from the target branch
+            target_sha = None
+            for ref in [f"origin/{branch}", branch]:
+                try:
+                    target_sha = repo.commit(ref).hexsha
+                    break
+                except Exception:
+                    continue
+            
+            if target_sha is None:
+                # Fall back to HEAD
+                target_sha = repo.head.commit.hexsha
+                console.print(f"[yellow]Warning: Could not find branch '{branch}', using HEAD[/yellow]")
+            
+            marker_dir = docs_dir / ".repo-explainer"
+            marker_dir.mkdir(parents=True, exist_ok=True)
+            
+            marker_file = marker_dir / "last_commit.txt"
+            marker_file.write_text(target_sha)
+            
+            return target_sha
+        except Exception as e:
+            console.print(f"[yellow]Warning: Could not save commit marker: {e}[/yellow]")
+            return None

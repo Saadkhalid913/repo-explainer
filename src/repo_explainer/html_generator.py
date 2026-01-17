@@ -1,9 +1,11 @@
 """HTML generation and serving for documentation."""
 
 import http.server
+import json
 import socketserver
 import threading
 import webbrowser
+from datetime import datetime
 from pathlib import Path
 from typing import Optional
 import markdown
@@ -26,6 +28,163 @@ class HTMLGenerator:
         self.docs_dir = docs_dir
         self.output_dir = output_dir or (docs_dir / "html")
         self.output_dir.mkdir(parents=True, exist_ok=True)
+        self.update_history = self._load_update_history()
+
+    def _load_update_history(self) -> list[dict]:
+        """Load update history from .repo-explainer/updates.json."""
+        history_file = self.docs_dir / ".repo-explainer" / "updates.json"
+        if history_file.exists():
+            try:
+                return json.loads(history_file.read_text())
+            except json.JSONDecodeError:
+                return []
+        return []
+
+    def _get_update_banner_html(self, root_path: str) -> str:
+        """
+        Generate HTML for the update notification banner.
+
+        Args:
+            root_path: Relative path to root for navigation
+
+        Returns:
+            HTML string for the update banner, or empty string if no updates
+        """
+        if not self.update_history:
+            return ""
+
+        latest = self.update_history[0]
+        try:
+            update_time = datetime.fromisoformat(latest["timestamp"])
+            now = datetime.now()
+            delta = now - update_time
+
+            # Format time ago
+            if delta.days > 30:
+                time_ago = f"{delta.days // 30} month{'s' if delta.days // 30 > 1 else ''} ago"
+            elif delta.days > 0:
+                time_ago = f"{delta.days} day{'s' if delta.days > 1 else ''} ago"
+            elif delta.seconds > 3600:
+                hours = delta.seconds // 3600
+                time_ago = f"{hours} hour{'s' if hours > 1 else ''} ago"
+            elif delta.seconds > 60:
+                minutes = delta.seconds // 60
+                time_ago = f"{minutes} minute{'s' if minutes > 1 else ''} ago"
+            else:
+                time_ago = "just now"
+
+            files_count = latest.get("files_changed", 0)
+            update_type = latest.get("type", "update")
+            commits = latest.get("commits", [])
+
+            # Build the banner
+            banner_class = "update-banner" if delta.days < 7 else "update-banner update-banner-old"
+
+            commits_html = ""
+            if commits:
+                commits_html = f'<span class="update-commits">Commits: {", ".join(commits[:3])}</span>'
+
+            return f'''
+            <div class="{banner_class}" id="update-banner">
+                <div class="update-banner-content">
+                    <span class="update-badge">Updated</span>
+                    <span class="update-time">{time_ago}</span>
+                    <span class="update-details">{files_count} file{'s' if files_count != 1 else ''} changed</span>
+                    {commits_html}
+                </div>
+                <button class="update-banner-close" onclick="document.getElementById('update-banner').style.display='none'" aria-label="Dismiss">×</button>
+            </div>
+            '''
+        except (KeyError, ValueError):
+            return ""
+
+    def _get_update_banner_css(self) -> str:
+        """Get CSS styles for the update banner."""
+        return '''
+        .update-banner {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.9rem;
+            position: sticky;
+            top: 0;
+            z-index: 1000;
+            box-shadow: 0 2px 10px rgba(102, 126, 234, 0.3);
+        }
+
+        .update-banner-old {
+            background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+        }
+
+        .update-banner-content {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            flex-wrap: wrap;
+        }
+
+        .update-badge {
+            background: rgba(255,255,255,0.2);
+            padding: 0.25rem 0.75rem;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 0.8rem;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .update-time {
+            font-weight: 500;
+        }
+
+        .update-details {
+            opacity: 0.9;
+        }
+
+        .update-commits {
+            opacity: 0.8;
+            font-family: 'SFMono-Regular', Consolas, monospace;
+            font-size: 0.85em;
+        }
+
+        .update-banner-close {
+            background: rgba(255,255,255,0.2);
+            border: none;
+            color: white;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+        }
+
+        .update-banner-close:hover {
+            background: rgba(255,255,255,0.3);
+        }
+
+        @media (max-width: 768px) {
+            .update-banner {
+                flex-direction: column;
+                gap: 0.5rem;
+                text-align: center;
+            }
+
+            .update-banner-content {
+                justify-content: center;
+            }
+
+            .update-commits {
+                display: none;
+            }
+        }
+        '''
 
     def generate(self) -> Path:
         """
@@ -71,6 +230,9 @@ class HTMLGenerator:
 
         # Generate navigation index
         self._generate_navigation()
+
+        # Generate update history page
+        self._generate_updates_page()
 
         console.print(f"[green]✓[/green] Generated HTML documentation at [cyan]{self.output_dir}[/cyan]")
         return self.output_dir
@@ -123,6 +285,11 @@ class HTMLGenerator:
         body = re.sub(r'href="([^"]+)\.md"', r'href="\1.html"', body)
         body = re.sub(r'\]\(([^)]+)\.md\)', r'](\1.html)', body)
 
+        # Get update banner (only show on index page)
+        update_banner = ""
+        if current_file == "index.md" and self.update_history:
+            update_banner = self._get_update_banner_html(root_path)
+
         return f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -131,9 +298,11 @@ class HTMLGenerator:
     <title>{title} - Repository Documentation</title>
     <style>
         {self._get_css()}
+        {self._get_update_banner_css()}
     </style>
 </head>
 <body>
+    {update_banner}
     <div class="container">
         <nav class="sidebar">
             <div class="nav-header">
@@ -157,6 +326,9 @@ class HTMLGenerator:
                 </a>
                 <a href="{root_path}tech-stack/overview.html" class="nav-item {'active' if 'tech-stack' in current_file else ''}">
                     🛠️ Tech Stack
+                </a>
+                <a href="{root_path}updates.html" class="nav-item {'active' if 'updates' in current_file else ''}">
+                    📋 Update History
                 </a>
             </div>
             <div class="nav-footer">
@@ -455,6 +627,298 @@ class HTMLGenerator:
             current_file="index.md",
         )
         index_html.write_text(html)
+
+    def _generate_updates_page(self) -> None:
+        """Generate the update history page with engineer-friendly information."""
+        if not self.update_history:
+            # Create a placeholder page
+            body = """
+            <h1>📋 Update History</h1>
+            <p>No updates recorded yet. Run <code>repo-explain update</code> to track documentation updates.</p>
+            """
+        else:
+            # Build update cards (more readable than tables)
+            update_cards = []
+            for update in self.update_history[:20]:
+                try:
+                    timestamp = datetime.fromisoformat(update["timestamp"])
+                    date_str = timestamp.strftime("%B %d, %Y at %H:%M")
+                    update_type = update.get("type", "update")
+                    files_count = update.get("files_changed", 0)
+                    summary = update.get("summary", f"{files_count} files changed")
+                    commits = update.get("commits", [])
+                    categories = update.get("categories", {})
+                    files = update.get("files", [])
+
+                    # Build commit messages HTML (the useful part!)
+                    commits_html = ""
+                    if commits:
+                        commit_items = []
+                        for c in commits[:5]:
+                            if isinstance(c, dict):
+                                sha = c.get("sha", "")
+                                msg = c.get("message", "No message")
+                                author = c.get("author", "Unknown")
+                                commit_items.append(f'''
+                                    <div class="commit-item">
+                                        <code class="commit-sha">{sha}</code>
+                                        <span class="commit-msg">{msg}</span>
+                                        <span class="commit-author">by {author}</span>
+                                    </div>
+                                ''')
+                            else:
+                                # Legacy format (just SHA string)
+                                commit_items.append(f'<div class="commit-item"><code>{c}</code></div>')
+                        
+                        commits_html = f'''
+                        <div class="commits-section">
+                            <h4>📝 Commits Included</h4>
+                            {"".join(commit_items)}
+                        </div>
+                        '''
+
+                    # Build categories HTML (what areas were affected)
+                    categories_html = ""
+                    if categories:
+                        cat_badges = []
+                        cat_icons = {
+                            "components": "🧩",
+                            "cli": "⌨️",
+                            "docs": "📄",
+                            "config": "⚙️",
+                            "tests": "🧪",
+                            "other": "📁",
+                        }
+                        for cat, cat_files in categories.items():
+                            icon = cat_icons.get(cat, "📁")
+                            cat_badges.append(f'<span class="cat-badge cat-{cat}">{icon} {cat.title()} ({len(cat_files)})</span>')
+                        
+                        categories_html = f'''
+                        <div class="categories-section">
+                            <h4>📂 Areas Affected</h4>
+                            <div class="cat-badges">{"".join(cat_badges)}</div>
+                        </div>
+                        '''
+
+                    # Build files list (collapsible)
+                    files_html = ""
+                    if files:
+                        files_list = "".join(f"<li><code>{f}</code></li>" for f in files[:15])
+                        if len(files) > 15:
+                            files_list += f"<li><em>... and {len(files) - 15} more files</em></li>"
+                        files_html = f'''
+                        <details class="files-section">
+                            <summary>📋 View all {len(files)} changed files</summary>
+                            <ul class="files-list">{files_list}</ul>
+                        </details>
+                        '''
+
+                    # Build the update card
+                    badge_class = "badge-incremental" if update_type == "incremental" else "badge-full"
+                    update_cards.append(f'''
+                    <div class="update-card">
+                        <div class="update-header">
+                            <span class="update-date">{date_str}</span>
+                            <span class="update-type-badge {badge_class}">{update_type}</span>
+                        </div>
+                        <div class="update-summary">
+                            <strong>{summary}</strong>
+                        </div>
+                        {categories_html}
+                        {commits_html}
+                        {files_html}
+                    </div>
+                    ''')
+                except (KeyError, ValueError) as e:
+                    continue
+
+            cards_html = "".join(update_cards)
+
+            body = f"""
+            <h1>📋 Update History</h1>
+            <p>This page shows the history of documentation updates. Each update includes commit messages, 
+            affected areas, and changed files to help you understand what changed.</p>
+
+            <div class="updates-container">
+                {cards_html}
+            </div>
+
+            <style>
+                .updates-container {{
+                    display: flex;
+                    flex-direction: column;
+                    gap: 1.5rem;
+                    margin-top: 2rem;
+                }}
+
+                .update-card {{
+                    background: #ffffff;
+                    border: 1px solid #e1e4e8;
+                    border-radius: 12px;
+                    padding: 1.5rem;
+                    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+                }}
+
+                .update-header {{
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    margin-bottom: 1rem;
+                    padding-bottom: 0.75rem;
+                    border-bottom: 1px solid #e1e4e8;
+                }}
+
+                .update-date {{
+                    color: #586069;
+                    font-size: 0.9rem;
+                }}
+
+                .update-type-badge {{
+                    display: inline-block;
+                    padding: 0.25rem 0.75rem;
+                    border-radius: 20px;
+                    font-size: 0.8rem;
+                    font-weight: 600;
+                    text-transform: uppercase;
+                }}
+
+                .badge-incremental {{
+                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+                    color: white;
+                }}
+
+                .badge-full {{
+                    background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+                    color: white;
+                }}
+
+                .update-summary {{
+                    font-size: 1.1rem;
+                    margin-bottom: 1rem;
+                    color: #24292e;
+                }}
+
+                .categories-section, .commits-section {{
+                    margin: 1rem 0;
+                }}
+
+                .categories-section h4, .commits-section h4 {{
+                    margin: 0 0 0.5rem 0;
+                    font-size: 0.9rem;
+                    color: #586069;
+                }}
+
+                .cat-badges {{
+                    display: flex;
+                    flex-wrap: wrap;
+                    gap: 0.5rem;
+                }}
+
+                .cat-badge {{
+                    display: inline-block;
+                    padding: 0.25rem 0.75rem;
+                    border-radius: 16px;
+                    font-size: 0.85rem;
+                    background: #f6f8fa;
+                    border: 1px solid #e1e4e8;
+                }}
+
+                .cat-components {{ background: #ddf4ff; border-color: #54aeff; }}
+                .cat-cli {{ background: #fff8c5; border-color: #d4a72c; }}
+                .cat-docs {{ background: #dafbe1; border-color: #4ac26b; }}
+                .cat-config {{ background: #ffeef0; border-color: #f97583; }}
+                .cat-tests {{ background: #f1e5ff; border-color: #a371f7; }}
+
+                .commit-item {{
+                    display: flex;
+                    align-items: baseline;
+                    gap: 0.75rem;
+                    padding: 0.5rem 0;
+                    border-bottom: 1px dashed #e1e4e8;
+                }}
+
+                .commit-item:last-child {{
+                    border-bottom: none;
+                }}
+
+                .commit-sha {{
+                    background: #f6f8fa;
+                    padding: 0.2rem 0.5rem;
+                    border-radius: 4px;
+                    font-size: 0.85rem;
+                    color: #0366d6;
+                    flex-shrink: 0;
+                }}
+
+                .commit-msg {{
+                    flex: 1;
+                    color: #24292e;
+                }}
+
+                .commit-author {{
+                    color: #586069;
+                    font-size: 0.85rem;
+                    flex-shrink: 0;
+                }}
+
+                .files-section {{
+                    margin-top: 1rem;
+                    border: 1px solid #e1e4e8;
+                    border-radius: 8px;
+                }}
+
+                .files-section summary {{
+                    padding: 0.75rem 1rem;
+                    background: #f6f8fa;
+                    cursor: pointer;
+                    font-weight: 500;
+                    border-radius: 8px;
+                }}
+
+                .files-section[open] summary {{
+                    border-radius: 8px 8px 0 0;
+                    border-bottom: 1px solid #e1e4e8;
+                }}
+
+                .files-list {{
+                    padding: 1rem;
+                    margin: 0;
+                    list-style: none;
+                }}
+
+                .files-list li {{
+                    padding: 0.25rem 0;
+                }}
+
+                .files-list code {{
+                    background: #f6f8fa;
+                    padding: 0.2rem 0.5rem;
+                    border-radius: 4px;
+                    font-size: 0.85rem;
+                }}
+            </style>
+
+            <h2>Usage</h2>
+            <pre><code># Update docs based on commits on main branch
+repo-explain update . --auto --generate-html
+
+# Update from a specific branch
+repo-explain update . --branch develop --generate-html
+
+# Force check last N commits
+repo-explain update . --commits 5 --generate-html
+</code></pre>
+            """
+
+        html = self._generate_page(
+            title="Update History",
+            body=body,
+            root_path="./",
+            current_file="updates.md",
+        )
+        updates_html = self.output_dir / "updates.html"
+        updates_html.write_text(html)
+        console.print(f"[dim]    ✓ Generated updates.html[/dim]")
 
 
 class DocsServer:

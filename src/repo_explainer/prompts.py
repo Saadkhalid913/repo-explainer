@@ -189,3 +189,86 @@ def get_pattern_detection_prompt() -> str:
 def get_dependency_mapping_prompt() -> str:
     """Get the dependency mapping prompt."""
     return load_prompt("dependency_mapping")
+
+
+# Incremental update prompt template
+INCREMENTAL_UPDATE_TEMPLATE = """Analyze changes in this repository and update the existing documentation.
+
+## Changed Files
+The following files have been modified in recent commits:
+{changed_files_list}
+
+## Instructions
+
+### 1. Analyze Each Changed File
+For each file listed above:
+- Read the file and understand what functionality it provides
+- Identify which component it belongs to (or if it's a new component)
+- Note new/modified/removed functions with line numbers
+- Check for new dependencies introduced
+
+### 2. Update architecture.md
+Update the architecture documentation:
+- Update relevant component descriptions for modified files
+- Add new sections if new modules/components were added
+- Update data flow descriptions if affected
+- Remove references to deleted functionality
+
+### 3. Update components.json
+Update the component registry:
+- Update existing component entries for modified files
+- Add new component entries for new files
+- Update key_functions with current line ranges
+- Update dependency lists if imports changed
+
+### 4. Update Mermaid Diagrams
+If component relationships or data flow changed:
+- Regenerate components.mermaid with updated structure
+- Regenerate dataflow.mermaid if data flow was affected
+
+### 5. Create CHANGELOG.md
+Create a changelog entry summarizing:
+- Which components were affected
+- What functionality was added/modified/removed
+- Any breaking changes or new dependencies
+
+## Output Files
+Create/update these files in the repository root:
+- architecture.md (updated)
+- components.json (updated)
+- components.mermaid (if relationships changed)
+- dataflow.mermaid (if data flow changed)
+- CHANGELOG.md (new entry)
+
+## Constraints
+- Focus ONLY on the changed files listed above
+- Preserve existing documentation structure and formatting
+- Include file paths and line numbers for all references
+- Don't re-analyze unchanged files
+"""
+
+
+def get_incremental_update_prompt(
+    changed_files: list[str],
+    existing_components_path: str | None = None,
+) -> str:
+    """
+    Get the incremental update prompt with changed files.
+
+    Args:
+        changed_files: List of changed file paths
+        existing_components_path: Path to existing components.json (for context)
+
+    Returns:
+        Formatted prompt string
+    """
+    files_list = "\n".join(f"- `{f}`" for f in changed_files)
+
+    prompt = INCREMENTAL_UPDATE_TEMPLATE.format(
+        changed_files_list=files_list,
+    )
+
+    if existing_components_path:
+        prompt += f"\n\n**Note:** Read the existing `{existing_components_path}` for context on current component structure.\n"
+
+    return prompt
