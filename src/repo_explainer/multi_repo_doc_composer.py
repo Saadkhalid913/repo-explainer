@@ -5,6 +5,7 @@ from pathlib import Path
 
 from rich.console import Console
 
+from .diagram_renderer import DiagramRenderer
 from .repository_loader import RepoMetadata
 
 console = Console()
@@ -27,6 +28,10 @@ class MultiRepoDocComposer:
 
         # Build service info for diagrams
         self._service_info = self._build_service_info()
+
+        # Diagram renderer and rendered diagram paths
+        self._diagram_renderer = DiagramRenderer()
+        self._rendered_diagrams: dict[str, Path] = {}
 
     def _build_service_info(self) -> dict:
         """Build service info including language detection."""
@@ -76,6 +81,10 @@ class MultiRepoDocComposer:
         # Generate all diagram files first
         console.print("[dim]  Generating diagram files...[/dim]")
         self._generate_all_diagrams()
+
+        # Render diagrams to PNG
+        console.print("[dim]  Rendering diagrams to PNG...[/dim]")
+        self._render_all_diagrams()
 
         # Phase 1: System components documentation
         console.print("[dim]  Writing component documentation...[/dim]")
@@ -146,10 +155,48 @@ class MultiRepoDocComposer:
                 self._mermaid_event_flow()
             )
 
+    def _render_all_diagrams(self) -> None:
+        """Render all generated Mermaid diagrams to PNG."""
+        src_dir = self.output_dir / "system" / "diagrams" / "src"
+        png_dir = self.output_dir / "system" / "diagrams" / "png"
+
+        self._rendered_diagrams = self._diagram_renderer.render_all_in_directory(
+            src_dir, png_dir, auto_fix=True
+        )
+
+        # Also render per-service diagrams
+        services_dir = self.output_dir / "services"
+        if services_dir.exists():
+            for service_dir in services_dir.iterdir():
+                if service_dir.is_dir():
+                    raw_dir = service_dir / "src" / "raw"
+                    diagrams_dir = service_dir / "diagrams"
+                    if raw_dir.exists():
+                        service_diagrams = self._diagram_renderer.render_all_in_directory(
+                            raw_dir, diagrams_dir, auto_fix=True
+                        )
+                        # Store with service prefix
+                        for name, path in service_diagrams.items():
+                            self._rendered_diagrams[f"{service_dir.name}/{name}"] = path
+
     def _diagram_link(self, filename: str, from_depth: int = 2) -> str:
-        """Generate a relative link to a diagram file."""
+        """Generate a relative link to a rendered diagram image (PNG)."""
         prefix = "../" * from_depth
-        return f"[View Diagram]({prefix}diagrams/src/{filename})"
+        # Check if PNG exists for this diagram
+        diagram_name = filename.replace(".mermaid", "")
+        if diagram_name in self._rendered_diagrams:
+            return f"![{diagram_name.replace('-', ' ').title()} Diagram]({prefix}diagrams/png/{diagram_name}.png)"
+        else:
+            # Fallback to source link if rendering failed
+            return f"[View Diagram Source]({prefix}diagrams/src/{filename})"
+
+    def _embed_diagram(self, diagram_name: str, alt_text: str, from_depth: int = 2) -> str:
+        """Generate embedded diagram image with fallback to source link."""
+        prefix = "../" * from_depth
+        if diagram_name in self._rendered_diagrams:
+            return f"![{alt_text}]({prefix}diagrams/png/{diagram_name}.png)"
+        else:
+            return f"> *Diagram not rendered. [View source]({prefix}diagrams/src/{diagram_name}.mermaid)*"
 
     # =========================================================================
     # MERMAID DIAGRAM CONTENT - ALL DYNAMICALLY GENERATED FROM DATA
@@ -445,7 +492,9 @@ class MultiRepoDocComposer:
 
 This diagram shows all services within the system boundary, their technologies, and how they communicate.
 
-**Diagram:** """ + self._diagram_link("c4-context.mermaid", from_depth=1) + """
+"""
+        content += self._embed_diagram("c4-context", "C4 Context Diagram", from_depth=1)
+        content += """
 
 ## Components by Layer
 
@@ -499,7 +548,9 @@ This diagram shows all services within the system boundary, their technologies, 
 
 This diagram shows services organized by architectural layer with their dependencies.
 
-**Diagram:** """ + self._diagram_link("layered-architecture.mermaid", from_depth=1) + """
+"""
+        content += self._embed_diagram("layered-architecture", "Layered Architecture Diagram", from_depth=1)
+        content += """
 
 ## Communication Patterns
 
@@ -624,7 +675,9 @@ This diagram shows services organized by architectural layer with their dependen
 
 This diagram shows how data flows through the system layers.
 
-**Diagram:** """ + self._diagram_link("data-flow.mermaid", from_depth=1) + """
+"""
+        content += self._embed_diagram("data-flow", "Data Flow Diagram", from_depth=1)
+        content += """
 
 ## Data Flow Patterns
 
@@ -664,7 +717,9 @@ This diagram shows how data flows through the system layers.
 
 This diagram shows the sequence of interactions between services.
 
-**Diagram:** """ + self._diagram_link("service-interaction.mermaid", from_depth=1) + """
+"""
+        content += self._embed_diagram("service-interaction", "Service Interaction Sequence Diagram", from_depth=1)
+        content += """
 
 ## Interaction Details
 
@@ -706,7 +761,9 @@ This diagram shows the sequence of interactions between services.
 
 This diagram shows all services and how they connect.
 
-**Diagram:** """ + self._diagram_link("api-topology.mermaid", from_depth=1) + f"""
+"""
+        content += self._embed_diagram("api-topology", "API Topology Diagram", from_depth=1)
+        content += f"""
 
 ## Endpoint Summary
 
@@ -794,7 +851,9 @@ This diagram shows all services and how they connect.
 
 ## Layered Architecture
 
-**Diagram:** """ + self._diagram_link("layered-architecture.mermaid", from_depth=1) + """
+"""
+        content += self._embed_diagram("layered-architecture", "Layered Architecture Diagram", from_depth=1)
+        content += """
 
 ## Dependency Analysis
 
@@ -889,7 +948,9 @@ External packages used by multiple services.
 
 ## Overview
 
-**Diagram:** """ + self._diagram_link("communication-types.mermaid", from_depth=1) + f"""
+"""
+        content += self._embed_diagram("communication-types", "Communication Types Diagram", from_depth=1)
+        content += f"""
 
 ## Statistics
 
@@ -921,7 +982,9 @@ External packages used by multiple services.
 
 ## Asynchronous Communication (Events)
 
-**Diagram:** """ + self._diagram_link("event-flow.mermaid", from_depth=1) + """
+"""
+            content += self._embed_diagram("event-flow", "Event Flow Diagram", from_depth=1)
+            content += """
 
 """
             if publishers:
@@ -959,7 +1022,9 @@ External packages used by multiple services.
 
 ## Architecture Diagram
 
-**Diagram:** [View Layered Architecture](diagrams/src/layered-architecture.mermaid)
+"""
+        content += self._embed_diagram("layered-architecture", "Layered Architecture Diagram", from_depth=0)
+        content += f"""
 
 ## System Metrics
 
@@ -997,6 +1062,7 @@ External packages used by multiple services.
 
     def _generate_index(self) -> Path:
         """Generate main index.md entry point."""
+        # Generate index content
         content = f"""# System Documentation
 
 **Analysis Date:** {self._get_timestamp()}
@@ -1006,9 +1072,14 @@ External packages used by multiple services.
 
 This documentation describes a distributed system with {len(self.repo_metadata)} services.
 
-**Architecture Diagram:** [View Layered Architecture](system/diagrams/src/layered-architecture.mermaid)
+"""
+        # Embed the architecture diagram in index
+        if "layered-architecture" in self._rendered_diagrams:
+            content += "![System Architecture](system/diagrams/png/layered-architecture.png)\n\n"
+        else:
+            content += "> *Architecture diagram not rendered. [View source](system/diagrams/src/layered-architecture.mermaid)*\n\n"
 
-## Documentation Structure
+        content += """## Documentation Structure
 
 ### System-Level Documentation
 

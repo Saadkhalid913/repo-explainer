@@ -2,12 +2,13 @@
 
 import json
 import re
-import subprocess
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
 from rich.console import Console
+
+from .diagram_renderer import DiagramRenderer
 
 console = Console()
 
@@ -26,6 +27,7 @@ class DocComposer:
         self.src_dir = output_dir / "src"
         self.raw_dir = output_dir / "src" / "raw"
         self.diagrams_dir = output_dir / "diagrams"
+        self._diagram_renderer = DiagramRenderer(opencode_cwd=self.raw_dir)
 
     def compose(
         self,
@@ -100,10 +102,10 @@ class DocComposer:
 
     def _render_diagrams(self) -> dict[str, Path]:
         """
-        Render Mermaid diagrams to SVG format.
+        Render Mermaid diagrams to PNG format using DiagramRenderer.
 
         Returns:
-            Dictionary mapping diagram names to SVG file paths (or .mermaid paths if rendering failed)
+            Dictionary mapping diagram names to PNG file paths (or .mermaid paths if rendering failed)
         """
         diagram_files = {}
 
@@ -114,148 +116,21 @@ class DocComposer:
             console.print("[dim]  No Mermaid diagrams to render[/dim]")
             return diagram_files
 
-        console.print(f"[dim]  Rendering {len(mermaid_files)} diagram(s)...[/dim]")
+        # Use the centralized diagram renderer to render to PNG
+        rendered = self._diagram_renderer.render_all_in_directory(
+            self.raw_dir, self.diagrams_dir, auto_fix=True
+        )
 
-        success_count = 0
-        failed_count = 0
+        # Add rendered diagrams
+        diagram_files.update(rendered)
 
+        # Track any failed diagrams (files not in rendered dict)
         for mermaid_file in mermaid_files:
-            svg_file = self.diagrams_dir / f"{mermaid_file.stem}.svg"
-
-            # Retry loop: try rendering up to 3 times with auto-fix
-            max_retries = 2
-            rendered = False
-
-            for attempt in range(max_retries + 1):
-                try:
-                    # Use Mermaid CLI (mmdc) to render
-                    result = subprocess.run(
-                        ["mmdc", "-i", str(mermaid_file), "-o", str(svg_file)],
-                        capture_output=True,
-                        text=True,
-                        timeout=30,
-                    )
-
-                    if result.returncode == 0:
-                        diagram_files[mermaid_file.stem] = svg_file
-                        success_count += 1
-                        if attempt > 0:
-                            console.print(f"[dim]    ✓ Rendered: {mermaid_file.name} → {svg_file.name} (after {attempt} fix(es))[/dim]")
-                        else:
-                            console.print(f"[dim]    ✓ Rendered: {mermaid_file.name} → {svg_file.name}[/dim]")
-                        rendered = True
-                        break
-                    else:
-                        # Rendering failed - try to fix if we have retries left
-                        if attempt < max_retries:
-                            error_msg = result.stderr
-                            console.print(f"[yellow]    ⚠ Syntax error in {mermaid_file.name}, attempting auto-fix (attempt {attempt + 1}/{max_retries})...[/yellow]")
-
-                            if self._fix_mermaid_syntax(mermaid_file, error_msg):
-                                continue  # Retry rendering
-                            else:
-                                console.print(f"[yellow]      Auto-fix failed, skipping retries[/yellow]")
-                                break
-                        else:
-                            # Out of retries
-                            break
-
-                except FileNotFoundError:
-                    console.print(
-                        "[yellow]  ⚠ Mermaid CLI (mmdc) not found. Install with: npm install -g @mermaid-js/mermaid-cli[/yellow]"
-                    )
-                    # Track all remaining mermaid files as failed
-                    for remaining_file in mermaid_files:
-                        diagram_files[remaining_file.stem] = remaining_file
-                    failed_count = len(mermaid_files)
-                    return diagram_files  # Exit early if mmdc not found
-                except subprocess.TimeoutExpired:
-                    console.print(f"[yellow]    ⚠ Timeout rendering {mermaid_file.name}[/yellow]")
-                    break
-                except Exception as e:
-                    console.print(f"[yellow]    ⚠ Error rendering {mermaid_file.name}: {e}[/yellow]")
-                    break
-
-            if not rendered:
-                # All retries failed, track the .mermaid source
+            if mermaid_file.stem not in rendered:
                 diagram_files[mermaid_file.stem] = mermaid_file
-                failed_count += 1
                 console.print(f"[dim]      Source available at {mermaid_file.name}[/dim]")
 
-        # Print summary
-        if success_count > 0 or failed_count > 0:
-            if success_count > 0:
-                console.print(f"[dim]  ✓ {success_count} diagram(s) rendered successfully[/dim]")
-            if failed_count > 0:
-                console.print(f"[dim]  ⚠ {failed_count} diagram(s) failed (source files available)[/dim]")
-
         return diagram_files
-
-    def _fix_mermaid_syntax(self, mermaid_file: Path, error_msg: str) -> bool:
-        """
-        Attempt to fix Mermaid syntax errors using OpenCode.
-
-        Args:
-            mermaid_file: Path to the .mermaid file with syntax errors
-            error_msg: Error message from the Mermaid CLI
-
-        Returns:
-            True if fixed successfully, False otherwise
-        """
-        try:
-            # Read the current content
-            content = mermaid_file.read_text()
-
-            # Create a prompt for OpenCode to fix the syntax
-            prompt = f"""Fix the Mermaid syntax errors in this diagram.
-
-Error message:
-{error_msg}
-
-Mermaid source:
-```mermaid
-{content}
-```
-
-Please output ONLY the corrected Mermaid code without any explanation or markdown code blocks.
-Just output the raw Mermaid syntax starting with the diagram type (e.g., 'graph', 'sequenceDiagram', 'classDiagram', etc.)."""
-
-            # Call OpenCode to fix the syntax
-            result = subprocess.run(
-                ["opencode", "run", prompt, "--format", "json"],
-                capture_output=True,
-                text=True,
-                timeout=60,
-                cwd=str(self.raw_dir),
-            )
-
-            if result.returncode != 0:
-                return False
-
-            # Parse the output to extract the fixed Mermaid code
-            fixed_content = None
-            for line in result.stdout.strip().split('\n'):
-                try:
-                    event = json.loads(line)
-                    if event.get("type") == "text":
-                        text_content = event.get("part", {}).get("text", "")
-                        if text_content and any(text_content.strip().startswith(t) for t in ["graph", "sequenceDiagram", "classDiagram", "flowchart", "erDiagram", "journey", "gantt", "pie", "gitGraph"]):
-                            fixed_content = text_content.strip()
-                            break
-                except json.JSONDecodeError:
-                    continue
-
-            if not fixed_content:
-                return False
-
-            # Write the fixed content back to the file
-            mermaid_file.write_text(fixed_content)
-            console.print(f"[dim]    ✓ Fixed syntax in {mermaid_file.name}[/dim]")
-            return True
-
-        except Exception as e:
-            console.print(f"[dim]    Failed to auto-fix {mermaid_file.name}: {e}[/dim]")
-            return False
 
     def _generate_subpages(self, diagram_files: dict[str, Path], components_data: dict[str, Any]) -> dict[str, Path]:
         """
@@ -347,18 +222,14 @@ Just output the raw Mermaid syntax starting with the diagram type (e.g., 'graph'
 
             content += "## Component Diagram\n\n"
 
-            # Embed rendered image if it's SVG
-            if diagram_path.suffix == ".svg":
+            # Embed rendered image if it's PNG or SVG
+            if diagram_path.suffix in (".png", ".svg"):
                 content += f"![Component Diagram]({relative_path})\n\n"
             elif diagram_path.suffix == ".mermaid":
                 # Rendering failed, show helpful message
-                content += "> ⚠️ **Note:** Diagram rendering failed due to Mermaid syntax errors.\n"
-                content += "> The source diagram is available in `src/raw/components.mermaid`. You can:\n"
-                content += "> - Fix the syntax and render manually with `mmdc -i src/raw/components.mermaid -o diagrams/components.svg`\n"
-                content += "> - View the source in a Mermaid-compatible editor\n"
-                content += "> - Check the [Mermaid documentation](https://mermaid.js.org/) for syntax help\n\n"
+                content += "> **Note:** Diagram rendering failed. The source diagram is available below.\n\n"
 
-            # Include Mermaid source
+            # Include Mermaid source as collapsible
             mermaid_source = self.raw_dir / "components.mermaid"
             if mermaid_source.exists():
                 content += "<details>\n<summary>View Mermaid Source</summary>\n\n"
@@ -385,18 +256,14 @@ Just output the raw Mermaid syntax starting with the diagram type (e.g., 'graph'
 
             content += "## Data Flow Diagram\n\n"
 
-            # Embed rendered image if it's SVG
-            if diagram_path.suffix == ".svg":
+            # Embed rendered image if it's PNG or SVG
+            if diagram_path.suffix in (".png", ".svg"):
                 content += f"![Data Flow Diagram]({relative_path})\n\n"
             elif diagram_path.suffix == ".mermaid":
                 # Rendering failed, show helpful message
-                content += "> ⚠️ **Note:** Diagram rendering failed due to Mermaid syntax errors.\n"
-                content += "> The source diagram is available in `src/raw/dataflow.mermaid`. You can:\n"
-                content += "> - Fix the syntax and render manually with `mmdc -i src/raw/dataflow.mermaid -o diagrams/dataflow.svg`\n"
-                content += "> - View the source in a Mermaid-compatible editor\n"
-                content += "> - Check the [Mermaid documentation](https://mermaid.js.org/) for syntax help\n\n"
+                content += "> **Note:** Diagram rendering failed. The source diagram is available below.\n\n"
 
-            # Include Mermaid source
+            # Include Mermaid source as collapsible
             mermaid_source = self.raw_dir / "dataflow.mermaid"
             if mermaid_source.exists():
                 content += "<details>\n<summary>View Mermaid Source</summary>\n\n"
@@ -525,11 +392,10 @@ Just output the raw Mermaid syntax starting with the diagram type (e.g., 'graph'
                 diagram_path = diagram_files["components"]
                 relative_path = diagram_path.relative_to(self.output_dir)
                 content += "### Component Structure\n\n"
-                if diagram_path.suffix == ".svg":
+                if diagram_path.suffix in (".png", ".svg"):
                     content += f"![Component Diagram]({relative_path})\n\n"
                 elif diagram_path.suffix == ".mermaid":
-                    content += "> ⚠️ Diagram rendering failed (Mermaid syntax errors). "
-                    content += "View source in [components/overview.md](components/overview.md)\n\n"
+                    content += "> Diagram not rendered. View source in [components/overview.md](components/overview.md)\n\n"
                 content += "[View detailed component documentation →](components/overview.md)\n\n"
 
             # Dataflow diagram
@@ -537,11 +403,10 @@ Just output the raw Mermaid syntax starting with the diagram type (e.g., 'graph'
                 diagram_path = diagram_files["dataflow"]
                 relative_path = diagram_path.relative_to(self.output_dir)
                 content += "### Data Flow\n\n"
-                if diagram_path.suffix == ".svg":
+                if diagram_path.suffix in (".png", ".svg"):
                     content += f"![Data Flow Diagram]({relative_path})\n\n"
                 elif diagram_path.suffix == ".mermaid":
-                    content += "> ⚠️ Diagram rendering failed (Mermaid syntax errors). "
-                    content += "View source in [dataflow/overview.md](dataflow/overview.md)\n\n"
+                    content += "> Diagram not rendered. View source in [dataflow/overview.md](dataflow/overview.md)\n\n"
                 content += "[View detailed data flow documentation →](dataflow/overview.md)\n\n"
 
         # Key metrics section
