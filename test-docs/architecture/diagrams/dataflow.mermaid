@@ -5,8 +5,8 @@ flowchart TD
     Init --> Load[Load Repository]
     Load --> Source[Source Code Files]
     
-    Source --> Analyze[Static Analysis (Tree-sitter)]
-    Analyze --> Context[Analysis Context / Component Graph]
+    Source --> Analyze["Static Analysis (Tree-sitter)"]
+    Analyze --> Context["Analysis Context / Component Graph"]
     
     Context --> AI{AI Provider?}
     
