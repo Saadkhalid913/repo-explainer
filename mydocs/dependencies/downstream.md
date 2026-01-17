@@ -115,7 +115,11 @@ This document lists what each component **depends on** (its downstream dependenc
 
 **Location**: `TeamPlayBook.MD`
 
-_No dependencies_
+### External Dependencies
+
+- `GitHub`
+- `Slack`
+- `PagerDuty`
 
 ---
 

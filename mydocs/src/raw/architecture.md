@@ -161,3 +161,6 @@ graph TD
 - **OpenCode CLI**: AI-powered analysis engine.
 - **Mermaid CLI (mmdc)**: Diagram rendering engine.
 - **Git**: Repository version control and history analysis.
+- **GitHub**: Source control hosting and issue tracking (referenced in Playbook).
+- **Slack**: Team communication and deployment notifications (referenced in Playbook).
+- **PagerDuty**: Incident management and on-call rotation (referenced in Playbook).

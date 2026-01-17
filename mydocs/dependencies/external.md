@@ -2,13 +2,31 @@
 
 This document lists all external packages used in the repository.
 
-**Total External Packages**: 6
+**Total External Packages**: 9
+
+## `GitHub`
+
+**Used by 1 component(s)**:
+
+- [`Team Playbook`](../components/team-playbook.md)
 
 ## `GitPython`
 
 **Used by 1 component(s)**:
 
 - [`Repository Loader`](../components/repository-loader.md)
+
+## `PagerDuty`
+
+**Used by 1 component(s)**:
+
+- [`Team Playbook`](../components/team-playbook.md)
+
+## `Slack`
+
+**Used by 1 component(s)**:
+
+- [`Team Playbook`](../components/team-playbook.md)
 
 ## `markdown`
 

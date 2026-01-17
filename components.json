@@ -220,7 +220,7 @@
       "key_functions": [],
       "dependencies": {
         "internal": [],
-        "external": []
+        "external": ["GitHub", "Slack", "PagerDuty"]
       }
     }
   ]

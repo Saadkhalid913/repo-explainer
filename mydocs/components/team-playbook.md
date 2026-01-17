@@ -10,6 +10,12 @@ Comprehensive engineering playbook covering workflows, quality standards, and co
 
 ## Dependencies
 
+### External Dependencies
+
+- `GitHub`
+- `Slack`
+- `PagerDuty`
+
 ## Used By
 
 _No components currently depend on this component._
