@@ -57,7 +57,7 @@ class MultiRepoDocComposer:
         return "Unknown"
 
     def compose(self) -> dict[str, Path]:
-        """Generate all system-level documentation with embedded diagrams."""
+        """Generate all system-level documentation with diagrams in separate files."""
         composed_files = {}
 
         # Create new directory structure
@@ -67,10 +67,15 @@ class MultiRepoDocComposer:
             "system/api",
             "system/dependencies",
             "system/communication",
+            "system/diagrams/src",  # Pure Mermaid files go here
             "services",
         ]
         for d in dirs:
             (self.output_dir / d).mkdir(parents=True, exist_ok=True)
+
+        # Generate all diagram files first
+        console.print("[dim]  Generating diagram files...[/dim]")
+        self._generate_all_diagrams()
 
         # Phase 1: System components documentation
         console.print("[dim]  Writing component documentation...[/dim]")
@@ -102,6 +107,398 @@ class MultiRepoDocComposer:
 
         return composed_files
 
+    def _generate_all_diagrams(self) -> None:
+        """Generate all diagram files to system/diagrams/src/."""
+        diagrams_dir = self.output_dir / "system" / "diagrams" / "src"
+        service_graph = self.cross_repo_data.get("service_graph", {})
+        edges = service_graph.get("edges", [])
+
+        # C4 Context Diagram
+        (diagrams_dir / "c4-context.mermaid").write_text(self._mermaid_c4_diagram())
+
+        # Layered Architecture
+        (diagrams_dir / "layered-architecture.mermaid").write_text(
+            self._mermaid_layered_architecture()
+        )
+
+        # Data Flow
+        (diagrams_dir / "data-flow.mermaid").write_text(self._mermaid_data_flow())
+
+        # User Journey
+        (diagrams_dir / "user-journey.mermaid").write_text(self._mermaid_user_journey())
+
+        # Checkout Sequence
+        (diagrams_dir / "checkout-sequence.mermaid").write_text(
+            self._mermaid_checkout_sequence()
+        )
+
+        # API Gateway Pattern
+        (diagrams_dir / "api-gateway.mermaid").write_text(self._mermaid_gateway())
+
+        # Orchestration Pattern
+        (diagrams_dir / "orchestration.mermaid").write_text(self._mermaid_orchestration())
+
+        # API Topology
+        (diagrams_dir / "api-topology.mermaid").write_text(self._mermaid_api_topology())
+
+        # Registration Sequence
+        (diagrams_dir / "registration-sequence.mermaid").write_text(
+            self._mermaid_registration_sequence()
+        )
+
+        # Orchestration Sequence
+        (diagrams_dir / "orchestration-sequence.mermaid").write_text(
+            self._mermaid_orchestration_sequence()
+        )
+
+        # Communication Pie Chart
+        http_count = len([e for e in edges if e.get("type") == "http"])
+        event_count = len([e for e in edges if e.get("type") == "event"])
+        (diagrams_dir / "communication-types.mermaid").write_text(
+            self._mermaid_communication_pie(http_count, event_count)
+        )
+
+        # Event Pattern
+        (diagrams_dir / "event-pattern.mermaid").write_text(self._mermaid_event_pattern())
+
+    def _diagram_link(self, filename: str, from_depth: int = 2) -> str:
+        """Generate a relative link to a diagram file.
+
+        Args:
+            filename: The diagram filename (e.g., "layered-architecture.mermaid")
+            from_depth: How many levels deep the calling file is from system/
+                       (e.g., 2 for system/components/overview.md)
+        """
+        prefix = "../" * from_depth
+        return f"[View Diagram]({prefix}diagrams/src/{filename})"
+
+    # =========================================================================
+    # MERMAID DIAGRAM CONTENT (pure mermaid, no markdown fences)
+    # =========================================================================
+
+    def _mermaid_c4_diagram(self) -> str:
+        """Generate C4-style context diagram (pure mermaid)."""
+        service_graph = self.cross_repo_data.get("service_graph", {})
+        edges = service_graph.get("edges", [])
+
+        diagram = """graph TB
+    subgraph System["System Boundary"]
+"""
+        for meta in self.repo_metadata:
+            lang = self._service_info.get(meta.name, {}).get("language", "Unknown")
+            safe_name = meta.name.replace("-", "_")
+            diagram += f'        {safe_name}["{meta.name}<br/>{lang}"]\n'
+
+        edge_labels = {}
+        for edge in edges:
+            source = edge["source"].replace("-", "_")
+            target = edge["target"].replace("-", "_")
+            edge_type = edge.get("type", "http")
+            key = f"{source}->{target}"
+            if key not in edge_labels:
+                edge_labels[key] = {"source": source, "target": target, "types": []}
+            edge_labels[key]["types"].append(edge_type)
+
+        for key, data in edge_labels.items():
+            label = data["types"][0].upper()
+            diagram += f'        {data["source"]} -->|{label}| {data["target"]}\n'
+
+        diagram += """    end
+
+    User([Customer]) --> System"""
+        return diagram
+
+    def _mermaid_layered_architecture(self) -> str:
+        """Generate layered architecture diagram (pure mermaid)."""
+        service_graph = self.cross_repo_data.get("service_graph", {})
+        edges = service_graph.get("edges", [])
+        layers = self._categorize_service_layers(edges)
+
+        diagram = "graph TB\n"
+
+        if layers["presentation"]:
+            diagram += "    subgraph Presentation[Presentation Layer]\n"
+            for svc in layers["presentation"]:
+                safe = svc.replace("-", "_")
+                diagram += f"        {safe}[{svc}]\n"
+            diagram += "    end\n\n"
+
+        if layers["business"]:
+            diagram += "    subgraph Business[Business Logic Layer]\n"
+            for svc in layers["business"]:
+                safe = svc.replace("-", "_")
+                diagram += f"        {safe}[{svc}]\n"
+            diagram += "    end\n\n"
+
+        if layers["integration"]:
+            diagram += "    subgraph Integration[Integration Layer]\n"
+            for svc in layers["integration"]:
+                safe = svc.replace("-", "_")
+                diagram += f"        {safe}[{svc}]\n"
+            diagram += "    end\n\n"
+
+        if layers["infrastructure"]:
+            diagram += "    subgraph Infrastructure[Infrastructure Layer]\n"
+            for svc in layers["infrastructure"]:
+                safe = svc.replace("-", "_")
+                diagram += f"        {safe}[{svc}]\n"
+            diagram += "    end\n\n"
+
+        seen_edges = set()
+        for edge in edges:
+            source = edge["source"].replace("-", "_")
+            target = edge["target"].replace("-", "_")
+            key = f"{source}-{target}"
+            if key not in seen_edges:
+                diagram += f"    {source} --> {target}\n"
+                seen_edges.add(key)
+
+        diagram += """
+    classDef presentation fill:#e1f5ff,stroke:#0277bd
+    classDef business fill:#fff4e1,stroke:#f57c00
+    classDef integration fill:#f0e1ff,stroke:#7b1fa2
+    classDef infrastructure fill:#e1ffe1,stroke:#388e3c
+"""
+        for layer, style in [("presentation", "presentation"), ("business", "business"),
+                            ("integration", "integration"), ("infrastructure", "infrastructure")]:
+            services = layers.get(layer, [])
+            if services:
+                safe_names = [s.replace("-", "_") for s in services]
+                diagram += f"    class {','.join(safe_names)} {style}\n"
+
+        return diagram
+
+    def _mermaid_data_flow(self) -> str:
+        """Generate data flow diagram (pure mermaid)."""
+        service_graph = self.cross_repo_data.get("service_graph", {})
+        edges = service_graph.get("edges", [])
+        layers = self._categorize_service_layers(edges)
+
+        diagram = """flowchart LR
+    subgraph Input[User Input]
+        Browser([Browser])
+    end
+
+"""
+        if layers["presentation"]:
+            diagram += "    subgraph Presentation\n"
+            for svc in layers["presentation"]:
+                safe = svc.replace("-", "_")
+                diagram += f"        {safe}[{svc}]\n"
+            diagram += "    end\n\n"
+
+        if layers["business"]:
+            diagram += "    subgraph Processing[Business Processing]\n"
+            for svc in layers["business"]:
+                safe = svc.replace("-", "_")
+                diagram += f"        {safe}[{svc}]\n"
+            diagram += "    end\n\n"
+
+        if layers["integration"] or layers["infrastructure"]:
+            diagram += "    subgraph Backend[Backend Services]\n"
+            for svc in layers["integration"] + layers["infrastructure"]:
+                safe = svc.replace("-", "_")
+                diagram += f"        {safe}[{svc}]\n"
+            diagram += "    end\n\n"
+
+        if layers["presentation"]:
+            for svc in layers["presentation"]:
+                safe = svc.replace("-", "_")
+                diagram += f"    Browser --> {safe}\n"
+
+        seen = set()
+        for edge in edges:
+            source = edge["source"].replace("-", "_")
+            target = edge["target"].replace("-", "_")
+            key = f"{source}-{target}"
+            if key not in seen:
+                diagram += f"    {source} --> {target}\n"
+                seen.add(key)
+
+        return diagram
+
+    def _mermaid_user_journey(self) -> str:
+        """Generate user journey diagram (pure mermaid)."""
+        return """graph TB
+    subgraph Browse[Browse Phase]
+        A[Customer lands] --> B[View Catalogue]
+        B --> C[View Product Details]
+    end
+
+    subgraph Cart[Cart Phase]
+        C --> D[Add to Cart]
+        D --> E[View Cart]
+        E --> F{Continue Shopping?}
+        F -->|Yes| B
+        F -->|No| G[Proceed to Checkout]
+    end
+
+    subgraph Checkout[Checkout Phase]
+        G --> H[Login/Register]
+        H --> I[Select Address]
+        I --> J[Select Payment Method]
+        J --> K[Place Order]
+    end
+
+    subgraph Processing[Processing Phase]
+        K --> L[Validate User]
+        L --> M[Process Payment]
+        M --> N[Create Shipping]
+        N --> O[Confirm Order]
+    end
+
+    O --> P[Customer Notification]
+
+    style Browse fill:#e1f5ff
+    style Cart fill:#fff4e1
+    style Checkout fill:#f0e1ff
+    style Processing fill:#e1ffe1"""
+
+    def _mermaid_checkout_sequence(self) -> str:
+        """Generate checkout sequence diagram (pure mermaid)."""
+        return """sequenceDiagram
+    actor Customer
+    participant FE as Front-End
+    participant Orders
+    participant User
+    participant Cart
+    participant Payment
+    participant Shipping
+
+    Customer->>FE: POST /orders
+    FE->>Orders: POST /orders
+
+    par Fetch User Data
+        Orders->>User: GET /customers/{id}
+        Orders->>User: GET /addresses/{id}
+        Orders->>User: GET /cards/{id}
+    and Fetch Cart
+        Orders->>Cart: GET /carts/{id}/items
+    end
+
+    Orders->>Payment: POST /paymentAuth
+    Payment-->>Orders: Payment authorized
+
+    Orders->>Shipping: POST /shipping
+    Shipping-->>Orders: Shipping created
+
+    Orders-->>FE: Order created
+    FE-->>Customer: Order confirmation"""
+
+    def _mermaid_gateway(self) -> str:
+        """Generate API gateway diagram (pure mermaid)."""
+        layers = self._categorize_service_layers(
+            self.cross_repo_data.get("service_graph", {}).get("edges", [])
+        )
+
+        diagram = "graph LR\n    Client[Customer Browser]\n"
+        if layers["presentation"]:
+            fe = layers["presentation"][0].replace("-", "_")
+            diagram += f"    Client --> {fe}[Front-End Gateway]\n\n"
+
+            for svc in layers["business"]:
+                safe = svc.replace("-", "_")
+                diagram += f"    {fe} -->|Route| {safe}[{svc}]\n"
+
+        return diagram
+
+    def _mermaid_orchestration(self) -> str:
+        """Generate orchestration pattern diagram (pure mermaid)."""
+        return """graph TD
+    Orders[Orders Service<br/>Orchestrator]
+
+    Orders -->|1. Validate| User[User Service]
+    Orders -->|2. Get Items| Cart[Cart Service]
+    Orders -->|3. Process| Payment[Payment Service]
+    Orders -->|4. Schedule| Shipping[Shipping Service]
+
+    style Orders fill:#ff9800,color:#fff"""
+
+    def _mermaid_api_topology(self) -> str:
+        """Generate API topology diagram (pure mermaid)."""
+        service_graph = self.cross_repo_data.get("service_graph", {})
+        edges = service_graph.get("edges", [])
+
+        diagram = """graph TB
+    subgraph External[External Clients]
+        Browser([Browser/Mobile])
+    end
+
+    subgraph APIs[API Services]
+"""
+        for meta in self.repo_metadata:
+            safe = meta.name.replace("-", "_")
+            diagram += f"        {safe}[{meta.name} API]\n"
+
+        diagram += "    end\n\n"
+
+        layers = self._categorize_service_layers(edges)
+        for svc in layers.get("presentation", []):
+            safe = svc.replace("-", "_")
+            diagram += f"    Browser -->|HTTPS| {safe}\n"
+
+        seen = set()
+        for edge in edges:
+            source = edge["source"].replace("-", "_")
+            target = edge["target"].replace("-", "_")
+            key = f"{source}-{target}"
+            if key not in seen:
+                edge_type = edge.get("type", "http").upper()
+                diagram += f"    {source} -->|{edge_type}| {target}\n"
+                seen.add(key)
+
+        return diagram
+
+    def _mermaid_registration_sequence(self) -> str:
+        """Generate registration sequence diagram (pure mermaid)."""
+        return """sequenceDiagram
+    actor Customer
+    participant FE as Front-End
+    participant User as User Service
+
+    Customer->>FE: POST /register
+    FE->>User: POST /register
+    User-->>FE: 201 Created
+    FE-->>Customer: Registration success"""
+
+    def _mermaid_orchestration_sequence(self) -> str:
+        """Generate orchestration sequence diagram (pure mermaid)."""
+        return """sequenceDiagram
+    Front-End->>Orders: POST /orders
+
+    rect rgb(200, 220, 240)
+        Note over Orders: Orchestration Phase
+        par Parallel Fetches
+            Orders->>User: GET /customers/{id}
+            Orders->>Cart: GET /carts/{id}/items
+        end
+
+        Orders->>Payment: POST /paymentAuth
+        Orders->>Shipping: POST /shipping
+    end
+
+    Orders-->>Front-End: Order created"""
+
+    def _mermaid_communication_pie(self, http_count: int, event_count: int) -> str:
+        """Generate communication types pie chart (pure mermaid)."""
+        return f"""pie title Communication Types
+    "HTTP/REST" : {http_count}
+    "Events/Messages" : {event_count if event_count > 0 else 1}"""
+
+    def _mermaid_event_pattern(self) -> str:
+        """Generate event pattern diagram (pure mermaid)."""
+        return """graph LR
+    Shipping[Shipping Service]
+    RMQ[RabbitMQ<br/>Event Bus]
+    QM[Queue Master]
+    Docker[Docker Daemon]
+
+    Shipping -->|Publish| RMQ
+    RMQ -->|shipping-task| QM
+    QM -->|Spawn Container| Docker
+
+    style RMQ fill:#FF6B6B,color:#fff"""
+
     # =========================================================================
     # COMPONENT DOCUMENTATION
     # =========================================================================
@@ -119,7 +516,7 @@ class MultiRepoDocComposer:
         return files
 
     def _generate_components_overview(self) -> Path:
-        """Generate system/components/overview.md with C4 diagram."""
+        """Generate system/components/overview.md with C4 diagram reference."""
         service_graph = self.cross_repo_data.get("service_graph", {})
         nodes = service_graph.get("nodes", [])
         edges = service_graph.get("edges", [])
@@ -131,11 +528,9 @@ class MultiRepoDocComposer:
 
 ## Architecture Overview
 
-"""
-        # C4 Context Diagram
-        content += self._generate_c4_diagram()
+This diagram shows all services within the system boundary, their technologies, and how they communicate.
 
-        content += """
+**Diagram:** """ + self._diagram_link("c4-context.mermaid", from_depth=1) + """
 
 ## Components by Layer
 
@@ -179,42 +574,6 @@ class MultiRepoDocComposer:
         file_path.write_text(content)
         return file_path
 
-    def _generate_c4_diagram(self) -> str:
-        """Generate C4-style context diagram."""
-        service_graph = self.cross_repo_data.get("service_graph", {})
-        edges = service_graph.get("edges", [])
-
-        diagram = """```mermaid
-graph TB
-    subgraph System["System Boundary"]
-"""
-        # Add all services as nodes
-        for meta in self.repo_metadata:
-            lang = self._service_info.get(meta.name, {}).get("language", "Unknown")
-            safe_name = meta.name.replace("-", "_")
-            diagram += f'        {safe_name}["{meta.name}<br/>{lang}"]\n'
-
-        # Add edges with labels
-        edge_labels = {}
-        for edge in edges:
-            source = edge["source"].replace("-", "_")
-            target = edge["target"].replace("-", "_")
-            edge_type = edge.get("type", "http")
-            key = f"{source}->{target}"
-            if key not in edge_labels:
-                edge_labels[key] = {"source": source, "target": target, "types": []}
-            edge_labels[key]["types"].append(edge_type)
-
-        for key, data in edge_labels.items():
-            label = data["types"][0].upper()
-            diagram += f'        {data["source"]} -->|{label}| {data["target"]}\n'
-
-        diagram += """    end
-
-    User([Customer]) --> System
-```"""
-        return diagram
-
     def _generate_component_relationships(self) -> Path:
         """Generate system/components/component-relationships.md."""
         service_graph = self.cross_repo_data.get("service_graph", {})
@@ -224,11 +583,9 @@ graph TB
 
 ## Interaction Diagram
 
-"""
-        # Generate layered architecture diagram
-        content += self._generate_layered_architecture_diagram()
+This diagram shows services organized by architectural layer (Presentation, Business, Integration, Infrastructure) with their dependencies.
 
-        content += """
+**Diagram:** """ + self._diagram_link("layered-architecture.mermaid", from_depth=1) + """
 
 ## Communication Patterns
 
@@ -254,72 +611,6 @@ graph TB
         file_path = self.output_dir / "system" / "components" / "component-relationships.md"
         file_path.write_text(content)
         return file_path
-
-    def _generate_layered_architecture_diagram(self) -> str:
-        """Generate layered architecture diagram."""
-        service_graph = self.cross_repo_data.get("service_graph", {})
-        edges = service_graph.get("edges", [])
-        layers = self._categorize_service_layers(edges)
-
-        diagram = """```mermaid
-graph TB
-"""
-        # Define layer subgraphs
-        if layers["presentation"]:
-            diagram += "    subgraph Presentation[Presentation Layer]\n"
-            for svc in layers["presentation"]:
-                safe = svc.replace("-", "_")
-                diagram += f"        {safe}[{svc}]\n"
-            diagram += "    end\n\n"
-
-        if layers["business"]:
-            diagram += "    subgraph Business[Business Logic Layer]\n"
-            for svc in layers["business"]:
-                safe = svc.replace("-", "_")
-                diagram += f"        {safe}[{svc}]\n"
-            diagram += "    end\n\n"
-
-        if layers["integration"]:
-            diagram += "    subgraph Integration[Integration Layer]\n"
-            for svc in layers["integration"]:
-                safe = svc.replace("-", "_")
-                diagram += f"        {safe}[{svc}]\n"
-            diagram += "    end\n\n"
-
-        if layers["infrastructure"]:
-            diagram += "    subgraph Infrastructure[Infrastructure Layer]\n"
-            for svc in layers["infrastructure"]:
-                safe = svc.replace("-", "_")
-                diagram += f"        {safe}[{svc}]\n"
-            diagram += "    end\n\n"
-
-        # Add edges
-        seen_edges = set()
-        for edge in edges:
-            source = edge["source"].replace("-", "_")
-            target = edge["target"].replace("-", "_")
-            key = f"{source}-{target}"
-            if key not in seen_edges:
-                diagram += f"    {source} --> {target}\n"
-                seen_edges.add(key)
-
-        # Style layers
-        diagram += """
-    classDef presentation fill:#e1f5ff,stroke:#0277bd
-    classDef business fill:#fff4e1,stroke:#f57c00
-    classDef integration fill:#f0e1ff,stroke:#7b1fa2
-    classDef infrastructure fill:#e1ffe1,stroke:#388e3c
-"""
-        # Apply styles
-        for layer, style in [("presentation", "presentation"), ("business", "business"),
-                            ("integration", "integration"), ("infrastructure", "infrastructure")]:
-            services = layers.get(layer, [])
-            if services:
-                safe_names = [s.replace("-", "_") for s in services]
-                diagram += f"    class {','.join(safe_names)} {style}\n"
-
-        diagram += "```"
-        return diagram
 
     def _categorize_service_layers(self, edges: list) -> dict:
         """Categorize services into architectural layers."""
@@ -428,11 +719,9 @@ graph TB
 
 ## System Data Flow
 
-"""
-        # High-level data flow diagram
-        content += self._generate_data_flow_diagram()
+This diagram shows how data flows from user input through the presentation layer, business processing, and backend services.
 
-        content += """
+**Diagram:** """ + self._diagram_link("data-flow.mermaid", from_depth=1) + """
 
 ## Data Flow Patterns
 
@@ -456,63 +745,8 @@ graph TB
         file_path.write_text(content)
         return file_path
 
-    def _generate_data_flow_diagram(self) -> str:
-        """Generate high-level data flow diagram."""
-        service_graph = self.cross_repo_data.get("service_graph", {})
-        edges = service_graph.get("edges", [])
-
-        diagram = """```mermaid
-flowchart LR
-    subgraph Input[User Input]
-        Browser([Browser])
-    end
-
-"""
-        # Group services by their role
-        layers = self._categorize_service_layers(edges)
-
-        if layers["presentation"]:
-            diagram += "    subgraph Presentation\n"
-            for svc in layers["presentation"]:
-                safe = svc.replace("-", "_")
-                diagram += f"        {safe}[{svc}]\n"
-            diagram += "    end\n\n"
-
-        if layers["business"]:
-            diagram += "    subgraph Processing[Business Processing]\n"
-            for svc in layers["business"]:
-                safe = svc.replace("-", "_")
-                diagram += f"        {safe}[{svc}]\n"
-            diagram += "    end\n\n"
-
-        if layers["integration"] or layers["infrastructure"]:
-            diagram += "    subgraph Backend[Backend Services]\n"
-            for svc in layers["integration"] + layers["infrastructure"]:
-                safe = svc.replace("-", "_")
-                diagram += f"        {safe}[{svc}]\n"
-            diagram += "    end\n\n"
-
-        # Connect browser to presentation
-        if layers["presentation"]:
-            for svc in layers["presentation"]:
-                safe = svc.replace("-", "_")
-                diagram += f"    Browser --> {safe}\n"
-
-        # Add service edges
-        seen = set()
-        for edge in edges:
-            source = edge["source"].replace("-", "_")
-            target = edge["target"].replace("-", "_")
-            key = f"{source}-{target}"
-            if key not in seen:
-                diagram += f"    {source} --> {target}\n"
-                seen.add(key)
-
-        diagram += "```"
-        return diagram
-
     def _generate_user_journey(self) -> Path:
-        """Generate system/dataflow/user-journey.md with journey diagrams."""
+        """Generate system/dataflow/user-journey.md with journey diagram reference."""
         service_graph = self.cross_repo_data.get("service_graph", {})
         edges = service_graph.get("edges", [])
 
@@ -520,11 +754,9 @@ flowchart LR
 
 ## Typical User Flow
 
-"""
-        # Generate user journey diagram
-        content += self._generate_user_journey_diagram()
+This diagram shows the complete user journey from browsing to order confirmation, organized by phase (Browse, Cart, Checkout, Processing).
 
-        content += """
+**Diagram:** """ + self._diagram_link("user-journey.mermaid", from_depth=1) + """
 
 ## Journey Steps
 
@@ -545,122 +777,26 @@ Payment is processed and shipping is scheduled.
         file_path.write_text(content)
         return file_path
 
-    def _generate_user_journey_diagram(self) -> str:
-        """Generate user journey flowchart."""
-        return """```mermaid
-graph TB
-    subgraph Browse[Browse Phase]
-        A[Customer lands] --> B[View Catalogue]
-        B --> C[View Product Details]
-    end
-
-    subgraph Cart[Cart Phase]
-        C --> D[Add to Cart]
-        D --> E[View Cart]
-        E --> F{Continue Shopping?}
-        F -->|Yes| B
-        F -->|No| G[Proceed to Checkout]
-    end
-
-    subgraph Checkout[Checkout Phase]
-        G --> H[Login/Register]
-        H --> I[Select Address]
-        I --> J[Select Payment Method]
-        J --> K[Place Order]
-    end
-
-    subgraph Processing[Processing Phase]
-        K --> L[Validate User]
-        L --> M[Process Payment]
-        M --> N[Create Shipping]
-        N --> O[Confirm Order]
-    end
-
-    O --> P[Customer Notification]
-
-    style Browse fill:#e1f5ff
-    style Cart fill:#fff4e1
-    style Checkout fill:#f0e1ff
-    style Processing fill:#e1ffe1
-```"""
-
     def _generate_request_response(self) -> Path:
-        """Generate system/dataflow/request-response.md with sequence diagrams."""
+        """Generate system/dataflow/request-response.md with sequence diagram references."""
         content = """# Request/Response Patterns
 
 ## Order Processing Sequence
 
-"""
-        # Generate checkout sequence diagram
-        content += self._generate_checkout_sequence_diagram()
+This sequence diagram shows the complete checkout flow, including parallel data fetches and payment/shipping processing.
 
-        content += """
+**Diagram:** """ + self._diagram_link("checkout-sequence.mermaid", from_depth=1) + """
 
 ## API Gateway Pattern
 
 The front-end acts as an API gateway, routing requests to backend services.
 
-"""
-        content += self._generate_gateway_diagram()
+**Diagram:** """ + self._diagram_link("api-gateway.mermaid", from_depth=1) + """
 
+"""
         file_path = self.output_dir / "system" / "dataflow" / "request-response.md"
         file_path.write_text(content)
         return file_path
-
-    def _generate_checkout_sequence_diagram(self) -> str:
-        """Generate checkout flow sequence diagram."""
-        return """```mermaid
-sequenceDiagram
-    actor Customer
-    participant FE as Front-End
-    participant Orders
-    participant User
-    participant Cart
-    participant Payment
-    participant Shipping
-
-    Customer->>FE: POST /orders
-    FE->>Orders: POST /orders
-
-    par Fetch User Data
-        Orders->>User: GET /customers/{id}
-        Orders->>User: GET /addresses/{id}
-        Orders->>User: GET /cards/{id}
-    and Fetch Cart
-        Orders->>Cart: GET /carts/{id}/items
-    end
-
-    Orders->>Payment: POST /paymentAuth
-    Payment-->>Orders: Payment authorized
-
-    Orders->>Shipping: POST /shipping
-    Shipping-->>Orders: Shipping created
-
-    Orders-->>FE: Order created
-    FE-->>Customer: Order confirmation
-```"""
-
-    def _generate_gateway_diagram(self) -> str:
-        """Generate API gateway pattern diagram."""
-        layers = self._categorize_service_layers(
-            self.cross_repo_data.get("service_graph", {}).get("edges", [])
-        )
-
-        diagram = """```mermaid
-graph LR
-    Client[Customer Browser]
-"""
-        if layers["presentation"]:
-            fe = layers["presentation"][0].replace("-", "_")
-            diagram += f"    Client --> {fe}[Front-End Gateway]\n\n"
-
-            # Connect to business services
-            for svc in layers["business"]:
-                safe = svc.replace("-", "_")
-                diagram += f"    {fe} -->|Route| {safe}[{svc}]\n"
-
-        diagram += "```"
-        return diagram
 
     # =========================================================================
     # API DOCUMENTATION
@@ -687,10 +823,9 @@ graph LR
 
 ## API Topology
 
-"""
-        content += self._generate_api_topology_diagram()
+This diagram shows all API services and how external clients connect to them.
 
-        content += f"""
+**Diagram:** """ + self._diagram_link("api-topology.mermaid", from_depth=1) + f"""
 
 ## Endpoint Summary
 
@@ -714,47 +849,8 @@ graph LR
         file_path.write_text(content)
         return file_path
 
-    def _generate_api_topology_diagram(self) -> str:
-        """Generate API topology diagram."""
-        service_graph = self.cross_repo_data.get("service_graph", {})
-        edges = service_graph.get("edges", [])
-
-        diagram = """```mermaid
-graph TB
-    subgraph External[External Clients]
-        Browser([Browser/Mobile])
-    end
-
-    subgraph APIs[API Services]
-"""
-        for meta in self.repo_metadata:
-            safe = meta.name.replace("-", "_")
-            diagram += f"        {safe}[{meta.name} API]\n"
-
-        diagram += "    end\n\n"
-
-        # Connect browser to front-facing services
-        layers = self._categorize_service_layers(edges)
-        for svc in layers.get("presentation", []):
-            safe = svc.replace("-", "_")
-            diagram += f"    Browser -->|HTTPS| {safe}\n"
-
-        # Add inter-service connections
-        seen = set()
-        for edge in edges:
-            source = edge["source"].replace("-", "_")
-            target = edge["target"].replace("-", "_")
-            key = f"{source}-{target}"
-            if key not in seen:
-                edge_type = edge.get("type", "http").upper()
-                diagram += f"    {source} -->|{edge_type}| {target}\n"
-                seen.add(key)
-
-        diagram += "```"
-        return diagram
-
     def _generate_api_flows(self) -> Path:
-        """Generate system/api/api-flows.md with sequence diagrams."""
+        """Generate system/api/api-flows.md with sequence diagram references."""
         content = """# API Interaction Flows
 
 ## Common API Patterns
@@ -763,65 +859,32 @@ graph TB
 
 Front-end routes all customer requests to backend services.
 
-"""
-        content += self._generate_gateway_diagram()
-
-        content += """
+**Diagram:** """ + self._diagram_link("api-gateway.mermaid", from_depth=1) + """
 
 ### Orchestration Pattern
 
 Orders service orchestrates multiple services for order processing.
 
-"""
-        content += self._generate_orchestration_diagram()
-
-        content += """
+**Diagram:** """ + self._diagram_link("orchestration.mermaid", from_depth=1) + """
 
 ## Key API Flows
 
 ### User Registration Flow
 
-"""
-        content += self._generate_registration_sequence()
+Simple registration flow from customer to user service.
 
-        content += """
+**Diagram:** """ + self._diagram_link("registration-sequence.mermaid", from_depth=1) + """
 
 ### Checkout Flow
 
-"""
-        content += self._generate_checkout_sequence_diagram()
+Complete checkout flow with parallel data fetches.
 
+**Diagram:** """ + self._diagram_link("checkout-sequence.mermaid", from_depth=1) + """
+
+"""
         file_path = self.output_dir / "system" / "api" / "api-flows.md"
         file_path.write_text(content)
         return file_path
-
-    def _generate_orchestration_diagram(self) -> str:
-        """Generate orchestration pattern diagram."""
-        return """```mermaid
-graph TD
-    Orders[Orders Service<br/>Orchestrator]
-
-    Orders -->|1. Validate| User[User Service]
-    Orders -->|2. Get Items| Cart[Cart Service]
-    Orders -->|3. Process| Payment[Payment Service]
-    Orders -->|4. Schedule| Shipping[Shipping Service]
-
-    style Orders fill:#ff9800,color:#fff
-```"""
-
-    def _generate_registration_sequence(self) -> str:
-        """Generate user registration sequence diagram."""
-        return """```mermaid
-sequenceDiagram
-    actor Customer
-    participant FE as Front-End
-    participant User as User Service
-
-    Customer->>FE: POST /register
-    FE->>User: POST /register
-    User-->>FE: 201 Created
-    FE-->>Customer: Registration success
-```"""
 
     # =========================================================================
     # DEPENDENCIES DOCUMENTATION
@@ -885,7 +948,7 @@ sequenceDiagram
         return file_path
 
     def _generate_service_graph(self) -> Path:
-        """Generate system/dependencies/service-graph.md with layered diagram."""
+        """Generate system/dependencies/service-graph.md with layered diagram reference."""
         service_graph = self.cross_repo_data.get("service_graph", {})
         edges = service_graph.get("edges", [])
 
@@ -893,10 +956,9 @@ sequenceDiagram
 
 ## Layered Architecture
 
-"""
-        content += self._generate_layered_architecture_diagram()
+This diagram shows all services organized by layer with color-coded styling.
 
-        content += """
+**Diagram:** """ + self._diagram_link("layered-architecture.mermaid", from_depth=1) + """
 
 ## Dependency Analysis
 
@@ -994,13 +1056,9 @@ External packages used by multiple services.
 
 ## Overview
 
-"""
-        # Communication type pie chart
-        content += f"""```mermaid
-pie title Communication Types
-    "HTTP/REST" : {http_count}
-    "Events/Messages" : {event_count if event_count > 0 else 1}
-```
+This pie chart shows the breakdown of synchronous vs asynchronous communication.
+
+**Diagram:** """ + self._diagram_link("communication-types.mermaid", from_depth=1) + f"""
 
 ## Statistics
 
@@ -1014,15 +1072,15 @@ pie title Communication Types
 
 ### API Gateway Pattern
 
-"""
-        content += self._generate_gateway_diagram()
+Front-end routes all customer requests to backend services.
 
-        content += """
+**Diagram:** """ + self._diagram_link("api-gateway.mermaid", from_depth=1) + """
 
 ### Service Orchestration
 
-"""
-        content += self._generate_orchestration_sequence()
+Orders service coordinates multiple services during checkout.
+
+**Diagram:** """ + self._diagram_link("orchestration-sequence.mermaid", from_depth=1)
 
         if event_count > 0:
             content += """
@@ -1031,48 +1089,14 @@ pie title Communication Types
 
 ### Event-Driven Pattern
 
-"""
-            content += self._generate_event_pattern_diagram()
+Shipping service publishes events to a message queue.
 
+**Diagram:** """ + self._diagram_link("event-pattern.mermaid", from_depth=1)
+
+        content += "\n"
         file_path = self.output_dir / "system" / "communication" / "overview.md"
         file_path.write_text(content)
         return file_path
-
-    def _generate_orchestration_sequence(self) -> str:
-        """Generate orchestration sequence diagram."""
-        return """```mermaid
-sequenceDiagram
-    Front-End->>Orders: POST /orders
-
-    rect rgb(200, 220, 240)
-        Note over Orders: Orchestration Phase
-        par Parallel Fetches
-            Orders->>User: GET /customers/{id}
-            Orders->>Cart: GET /carts/{id}/items
-        end
-
-        Orders->>Payment: POST /paymentAuth
-        Orders->>Shipping: POST /shipping
-    end
-
-    Orders-->>Front-End: Order created
-```"""
-
-    def _generate_event_pattern_diagram(self) -> str:
-        """Generate event-driven pattern diagram."""
-        return """```mermaid
-graph LR
-    Shipping[Shipping Service]
-    RMQ[RabbitMQ<br/>Event Bus]
-    QM[Queue Master]
-    Docker[Docker Daemon]
-
-    Shipping -->|Publish| RMQ
-    RMQ -->|shipping-task| QM
-    QM -->|Spawn Container| Docker
-
-    style RMQ fill:#FF6B6B,color:#fff
-```"""
 
     # =========================================================================
     # SYSTEM OVERVIEW & INDEX
@@ -1093,10 +1117,9 @@ graph LR
 
 ## Architecture Diagram
 
-"""
-        content += self._generate_layered_architecture_diagram()
+This diagram shows all services organized by architectural layer with their dependencies.
 
-        content += f"""
+**Diagram:** [View Layered Architecture](diagrams/src/layered-architecture.mermaid)
 
 ## System Metrics
 
@@ -1140,11 +1163,9 @@ graph LR
 
 ## System Overview
 
-"""
-        # Include a summary diagram in the index
-        content += self._generate_layered_architecture_diagram()
+This documentation describes a microservices system with {len(self.repo_metadata)} services. The architecture is organized into layers: Presentation, Business Logic, Integration, and Infrastructure.
 
-        content += """
+**Architecture Diagram:** [View Layered Architecture](system/diagrams/src/layered-architecture.mermaid)
 
 ## Documentation Structure
 
