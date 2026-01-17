@@ -1,0 +1,15 @@
+{
+  "timestamp": "20260117_163847",
+  "repository": "tmp/kubernetes/kubernetes",
+  "depth": "extra-deep",
+  "session_id": null,
+  "success": true,
+  "error": null,
+  "artifacts": {},
+  "opencode_artifacts": [
+    "kubernetes-exhaustive/src/raw/architecture.md",
+    "kubernetes-exhaustive/src/raw/components.mermaid",
+    "kubernetes-exhaustive/src/raw/dataflow.mermaid",
+    "kubernetes-exhaustive/src/raw/tech-stack.txt"
+  ]
+}
