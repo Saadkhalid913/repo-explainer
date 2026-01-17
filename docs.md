@@ -16,7 +16,30 @@
 
 ## Overview
 
-Repository Explainer is a CLI tool that analyzes repositories and generates AI-powered documentation using OpenCode.
+Repository Explainer is a CLI tool that analyzes repositories and generates AI-powered documentation using OpenCode. It supports both **local repositories** and **remote Git URLs** with automatic cloning.
+
+## Quick Reference
+
+**Analyze local repository:**
+```bash
+repo-explain analyze ./my-project --depth quick
+```
+
+**Analyze remote repository:**
+```bash
+repo-explain analyze https://github.com/user/repo --depth quick
+```
+
+**Force re-clone:**
+```bash
+repo-explain analyze https://github.com/user/repo --force-clone
+```
+
+**Get help:**
+```bash
+repo-explain --help
+repo-explain analyze --help
+```
 
 ## Table of Contents
 1. [CLI Commands](#cli-commands)
@@ -24,6 +47,8 @@ Repository Explainer is a CLI tool that analyzes repositories and generates AI-p
 3. [Services](#services)
 4. [Testing & Troubleshooting](#testing--troubleshooting)
 5. [Examples](#examples)
+6. [Future API Changes](#future-api-changes)
+7. [Contributing](#contributing)
 
 ---
 
