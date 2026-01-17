@@ -184,9 +184,17 @@ class MultiRepoOrchestrator:
                     if file_path:
                         console.print(f"    [dim]✏️  [{meta.name}] Writing:[/dim] [green]{file_path}[/green]")
 
-        # Run architecture analysis
+        # Run architecture analysis - choose method based on repo size and depth
         if self.depth == "quick":
             result = service.quick_scan(event_callback=handle_event if self.verbose else None)
+        elif self.depth == "extra-deep":
+            # Use extra-deep analysis for exhaustive documentation
+            console.print(f"    [dim]📚 [{meta.name}] Using extra-deep analysis (exhaustive)...[/dim]")
+            result = service.analyze_extra_deep(event_callback=handle_event if self.verbose else None)
+        elif self.depth == "deep" or service.is_large_repo(threshold=500):
+            # Use large system analysis for deep analysis or large repos
+            console.print(f"    [dim]📊 [{meta.name}] Using large system analysis...[/dim]")
+            result = service.analyze_large_system(event_callback=handle_event if self.verbose else None)
         else:
             result = service.analyze_architecture(event_callback=handle_event if self.verbose else None)
 

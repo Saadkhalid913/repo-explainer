@@ -59,7 +59,7 @@ def analyze(
         str,
         typer.Option(
             "--depth", "-d",
-            help="Analysis depth: quick, standard, or deep",
+            help="Analysis depth: quick, standard, deep, or extra-deep",
         ),
     ] = "standard",
     output: Annotated[
@@ -217,11 +217,30 @@ def analyze(
                 if pattern:
                     console.print(f"  [dim]🔍 Searching:[/dim] {pattern}")
 
+    # Validate depth option
+    valid_depths = ["quick", "standard", "deep", "extra-deep"]
+    if depth not in valid_depths:
+        console.print(f"[red]Error:[/red] Invalid depth '{depth}'. Must be one of: {', '.join(valid_depths)}")
+        raise typer.Exit(1)
+
+    # Determine which analysis method to use
+    use_extra_deep = depth == "extra-deep"
+    use_large_system = depth == "deep" or (opencode.is_large_repo(threshold=500) and depth == "standard")
+
+    if use_extra_deep:
+        console.print("[dim]📚 Extra-deep mode: Generating exhaustive per-component documentation...[/dim]\n")
+    elif use_large_system and depth != "quick":
+        console.print("[dim]📊 Detected large repository - using comprehensive analysis mode...[/dim]\n")
+
     # Run analysis with streaming if verbose
     if verbose:
         console.print("[dim]Verbose mode: Showing OpenCode activity...[/dim]\n")
         if depth == "quick":
             result = opencode.quick_scan(event_callback=handle_opencode_event)
+        elif use_extra_deep:
+            result = opencode.analyze_extra_deep(event_callback=handle_opencode_event)
+        elif use_large_system:
+            result = opencode.analyze_large_system(event_callback=handle_opencode_event)
         else:
             result = opencode.analyze_architecture(event_callback=handle_opencode_event)
     else:
@@ -230,10 +249,20 @@ def analyze(
             TextColumn("[progress.description]{task.description}"),
             console=console,
         ) as progress:
-            task = progress.add_task(f"Analyzing repository ({depth} mode)...", total=None)
+            if use_extra_deep:
+                analysis_type = "extra-deep (exhaustive)"
+            elif use_large_system:
+                analysis_type = "comprehensive"
+            else:
+                analysis_type = depth
+            task = progress.add_task(f"Analyzing repository ({analysis_type} mode)...", total=None)
 
             if depth == "quick":
                 result = opencode.quick_scan()
+            elif use_extra_deep:
+                result = opencode.analyze_extra_deep()
+            elif use_large_system:
+                result = opencode.analyze_large_system()
             else:
                 result = opencode.analyze_architecture()
 

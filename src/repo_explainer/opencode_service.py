@@ -12,6 +12,8 @@ from .config import get_settings
 from .prompts import (
     get_architecture_prompt,
     get_dependency_mapping_prompt,
+    get_extra_deep_prompt,
+    get_large_system_prompt,
     get_pattern_detection_prompt,
     get_quick_scan_prompt,
 )
@@ -226,6 +228,77 @@ class OpenCodeService:
         """
         prompt = get_dependency_mapping_prompt()
         return self.run_command(prompt, event_callback=event_callback)
+
+    def analyze_large_system(
+        self, event_callback: Callable[[dict], None] | None = None
+    ) -> OpenCodeResult:
+        """
+        Run comprehensive analysis for large monorepos.
+
+        Uses the large_system_analysis prompt template which is optimized for:
+        - Large codebases (100s-1000s of files)
+        - Complex monorepos (Kubernetes, Linux, enterprise systems)
+        - High-level architectural understanding
+        - Readable documentation for newcomers
+
+        Returns:
+            OpenCodeResult with generated documentation
+        """
+        prompt = get_large_system_prompt()
+        return self.run_command(prompt, event_callback=event_callback)
+
+    def analyze_extra_deep(
+        self, event_callback: Callable[[dict], None] | None = None
+    ) -> OpenCodeResult:
+        """
+        Run exhaustive analysis generating per-component documentation.
+
+        Uses the extra_deep_analysis prompt template which generates:
+        - Individual MD files for each component
+        - Individual MD files for each interaction pattern
+        - Per-controller documentation
+        - Per-API group documentation
+        - Per-interface documentation
+        - Comprehensive glossary
+        - Multiple detailed diagrams
+
+        This is the most thorough analysis mode, suitable for creating
+        encyclopedia-style documentation of large systems.
+
+        Returns:
+            OpenCodeResult with extensive generated documentation
+        """
+        prompt = get_extra_deep_prompt()
+        return self.run_command(prompt, event_callback=event_callback)
+
+    def is_large_repo(self, threshold: int = 500) -> bool:
+        """
+        Check if this repository is considered "large" based on file count.
+
+        Args:
+            threshold: Number of files to consider "large" (default 500)
+
+        Returns:
+            True if repo has more than threshold files
+        """
+        try:
+            # Count source files (exclude common non-source directories)
+            exclude_dirs = {
+                "node_modules", "vendor", "venv", ".venv", "__pycache__",
+                ".git", "dist", "build", "target", ".tox", "coverage"
+            }
+
+            count = 0
+            for item in self.repo_path.rglob("*"):
+                if item.is_file():
+                    # Skip excluded directories
+                    if not any(excl in item.parts for excl in exclude_dirs):
+                        count += 1
+                        if count > threshold:
+                            return True
+            return count > threshold
+        except Exception:
+            return False
 
     def check_available(self) -> bool:
         """Check if OpenCode CLI is available."""

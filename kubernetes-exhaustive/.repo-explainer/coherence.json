@@ -1,0 +1,11 @@
+{
+  "timestamp": "20260117_163847",
+  "files": {
+    "dataflow": "kubernetes-exhaustive/dataflow/overview.md",
+    "components": "kubernetes-exhaustive/diagrams/components.png",
+    "components_overview": "kubernetes-exhaustive/components/overview.md",
+    "tech-stack": "kubernetes-exhaustive/tech-stack/overview.md",
+    "index": "kubernetes-exhaustive/index.md"
+  },
+  "version": "1.0"
+}
