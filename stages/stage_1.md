@@ -43,3 +43,68 @@
 ## Diagrams
 - Backend architecture: `diagrams/stage_1/backend.mmd`
 - TUI interaction: `diagrams/stage_1/tui.mmd`
+
+## Implementation Checklist
+
+### Core Infrastructure
+- [x] Project structure (`src/repo_explainer/`)
+- [x] `pyproject.toml` with dependencies (typer, rich, pydantic, GitPython)
+- [x] Configuration management (`config.py` with pydantic-settings)
+- [x] Entry point script (`repo-explain` command)
+
+### CLI Module
+- [x] Typer-based CLI entry point (`cli.py`)
+- [x] `analyze` command with depth options (quick/standard/deep)
+- [x] `update` command placeholder
+- [x] Rich terminal feedback (panels, progress spinners)
+- [ ] Logging configuration
+- [ ] Config file loading (YAML)
+
+### OpenCode Integration
+- [x] OpenCode service wrapper (`opencode_service.py`)
+- [x] Command execution via subprocess
+- [x] JSON output parsing
+- [x] Availability check
+- [ ] Custom command support (`.opencode/commands/*.md`)
+- [ ] Session ID tracking and persistence
+
+### Repository Loader
+- [ ] Local path resolution
+- [ ] Git clone helper
+- [ ] Authentication stub
+
+### Analyzer
+- [ ] Prompt preparation for OpenCode
+- [ ] Tree-sitter/AST integration for local enrichment
+- [ ] Python language support
+- [ ] JavaScript/TypeScript language support
+
+### Documentation Generator
+- [ ] Markdown file writer
+- [ ] Table of contents builder
+- [ ] Index creation
+- [ ] OpenCode artifact ingestion
+
+### Diagram Generator
+- [ ] Mermaid component diagram emission
+- [ ] OpenCode diagram import
+- [ ] `.mmd` file writers
+
+### Output Manager
+- [ ] Directory structure creation
+- [ ] Metadata/log persistence
+- [ ] Config tracking
+- [ ] OpenCode session manifest recording
+
+### Claude Code Fallback
+- [ ] Claude Code CLI integration
+- [ ] `--allowedTools` gating
+- [ ] Fallback switching logic
+
+### Deliverables
+- [ ] `repo-explainer analyze` producing markdown + diagrams
+- [ ] `repo-explainer update` for incremental updates
+- [ ] `.opencode/commands/analyze-architecture.md`
+- [ ] Quick/standard/deep command variants
+- [ ] Claude Code equivalent documentation
+- [ ] Verified prompts for Gemini 2.5 Flash
