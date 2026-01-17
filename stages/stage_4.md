@@ -34,3 +34,7 @@
 - Config-driven multi-repo analysis command with shared output directory.
 - Documentation set describing inter-service communication, shared patterns, and system-wide diagrams.
 - Ability to exclude sensitive services/files per repo with inheritance.
+
+## Diagrams
+- Backend architecture: `diagrams/stage_4/backend.mmd`
+- TUI interaction: `diagrams/stage_4/tui.mmd`

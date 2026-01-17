@@ -40,3 +40,6 @@
 - Support for multiple LLM providers including offline/local models for privacy mode.
 - Diagram export tools producing shareable assets for stakeholders.
 
+## Diagrams
+- Backend architecture: `diagrams/stage_5/backend.mmd`
+- TUI interaction: `diagrams/stage_5/tui.mmd`

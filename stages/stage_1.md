@@ -36,3 +36,7 @@
 - `repo-explainer analyze/update` commands producing markdown docs, logs, and at least one architecture diagram.
 - Support for Python and JavaScript/TypeScript repositories only.
 - Initial prompts tuned for structure detection, verifying outputs against static summaries.
+
+## Diagrams
+- Backend architecture: `diagrams/stage_1/backend.mmd`
+- TUI interaction: `diagrams/stage_1/tui.mmd`

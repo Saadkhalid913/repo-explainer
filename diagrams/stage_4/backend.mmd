@@ -1,0 +1,13 @@
+flowchart LR
+    CLI --> Facade["Multi-Repo Facade"]
+    Facade --> Config["Manifest Loader"]
+    Facade --> Factory["Repo Analyzer Factory"]
+    Factory --> RepoA["Repo Analyzer A"]
+    Factory --> RepoB["Repo Analyzer B"]
+    Factory --> RepoN["Repo Analyzer N"]
+    RepoA --> Aggregator["Cross-Service Mapper"]
+    RepoB --> Aggregator
+    RepoN --> Aggregator
+    Aggregator --> SystemDiagram["System Diagram Generator"]
+    Aggregator --> UnifiedDocs["Unified Doc Builder"]
+    UnifiedDocs --> Output["Shared Output"]

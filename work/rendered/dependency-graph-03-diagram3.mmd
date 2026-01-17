@@ -1,0 +1,68 @@
+flowchart TB
+    subgraph Phase1["Phase 1: Foundation"]
+        B1[Tree-sitter Python Integration]
+        B2[Tree-sitter JS/TS Integration]
+        B3[File Scanner & Dir Traversal]
+        B4[Component Identification]
+        B5[Architecture Diagram Generator]
+        B6[Markdown File Writer & TOC]
+    end
+
+    subgraph Phase2["Phase 2: Intelligence"]
+        B7[Architectural Pattern Detector]
+        B8[Design Pattern Detector]
+        B9[Dependency Mapper]
+        B10[Dependency Graph Generator]
+        B11[Sequence Diagram Generator]
+        B12[ER Diagram Generator]
+        B13[Call Graph Generator]
+    end
+
+    subgraph Phase3["Phase 3: Scaling"]
+        B14[Parallel Executor]
+        B15[Context Optimizer]
+        B16[Progressive Output Streaming]
+        B17[Hierarchical Summarization]
+        B18[Cross-Service Mapper]
+        B19[System Diagram Generator]
+        B20[Unified Doc Builder]
+    end
+
+    subgraph Phase4["Phase 4: Integrations"]
+        B21[Interactive HTML Renderer]
+        B22[Static Site Generator Integration]
+        B23[VS Code Extension Hooks]
+        B24[Diagram Exporter - Multiple Formats]
+        B25[ASCII Fallback Generators]
+    end
+
+    A4[Repository Loader] -.-> B1
+    A4[Repository Loader] -.-> B2
+    B1 --> B3
+    B2 --> B3
+    B3 --> B4
+    B4 --> B5
+    B4 --> B6
+
+    A8[Prompt Templates] -.-> B7
+    A8[Prompt Templates] -.-> B8
+    B9 --> B10
+    B3 --> B9
+    B7 --> B11
+    B8 --> B12
+    B4 --> B13
+
+    A11[Cost Tracking] -.-> B14
+    B10 --> B14
+    B14 --> B15
+    B15 --> B16
+    B16 --> B17
+    A18[Service Registry] -.-> B18
+    B18 --> B19
+    B19 --> B20
+
+    B20 --> B21
+    B21 --> B22
+    B22 --> B23
+    B22 --> B24
+    B24 --> B25

@@ -1,0 +1,33 @@
+```mermaid
+flowchart LR
+    subgraph DevA["Developer A - Core Infrastructure"]
+        A2[Config Management]
+        A4[Repository Loader]
+        A8[Prompt Templates]
+        A11[Cost Tracking]
+        A18[Service Registry]
+        A21[Static Export Pipeline]
+    end
+
+    subgraph DevB["Developer B - Analysis Engine"]
+        B4[Component Identification]
+        B7[Pattern Detection]
+        B14[Parallel Executor]
+        B19[System Diagram Generator]
+        B20[Unified Doc Builder]
+    end
+
+    A2 -.-> B6[Markdown Writer]
+    B4 -.-> A8
+    A4 -.-> B1[Tree-sitter Python]
+    A4 -.-> B2[Tree-sitter JS/TS]
+    A8 -.-> B7
+    A11 -.-> B14
+    A18 -.-> B18[Cross-Service Mapper]
+    A21 -.-> B21[HTML Renderer]
+    B20 -.-> A22[Diagram Export]
+
+    style DevA fill:#e1f5ff
+    style DevB fill:#fff4e1
+
+```

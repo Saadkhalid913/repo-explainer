@@ -1,0 +1,7 @@
+flowchart TD
+    User --> CLI
+    CLI --> Options["Select provider/export modes"]
+    CLI --> Status["Plugin status + telemetry opt-in"]
+    CLI --> Outputs["Markdown + HTML artifacts"]
+    Outputs --> User
+    Status --> User

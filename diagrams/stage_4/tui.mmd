@@ -1,0 +1,11 @@
+sequenceDiagram
+    participant User
+    participant CLI
+    participant Facade
+    participant Aggregator
+
+    User->>CLI: repo-explainer analyze-multi config.yml
+    CLI->>Facade: load manifest + credentials
+    Facade->>Aggregator: emit per-repo results
+    Aggregator-->>CLI: system summary + warnings
+    CLI-->>User: per-service links + system diagrams

@@ -1,0 +1,7 @@
+flowchart TD
+    User --> CLI
+    CLI -->|configure depth/output| CLI
+    CLI --> Progress["Rich Progress Display"]
+    Progress --> User
+    CLI --> Logs["Run Metadata / Logs"]
+    Logs --> User

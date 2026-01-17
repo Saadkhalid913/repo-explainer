@@ -1,0 +1,50 @@
+gantt
+    title Repository Explainer Development Timeline (2 Developers - 8 Weeks)
+    dateFormat  YYYY-MM-DD
+    section Phase 1: Foundation
+    Setup & Structure          :done, p1a, 2026-01-17, 3d
+    CLI Scaffolding           :p1b, p1a, 4d
+    Config Management         :p1c, p1b, 3d
+    Repository Loader         :p1d, p1c, 4d
+
+    Tree-sitter Integration   :p1e, p1a, 5d
+    File Scanner              :p1f, p1e, 3d
+    Component ID              :p1g, p1f, 4d
+    Basic Markdown Writer     :p1h, p1g, 3d
+
+    section Phase 2: Intelligence
+    OpenRouter Integration    :p2a, p1d, 5d
+    Prompt Templates          :p2b, p1h, 4d
+    Context Management        :p2c, p2a, 3d
+    Cost Tracking             :p2d, p2a, 3d
+
+    Pattern Detector          :p2e, p2b, 5d
+    Dependency Mapper         :p2f, p2b, 4d
+    Diagram Generators        :p2g, p2e, 5d
+    Progress Reporting        :p2h, p2d, 3d
+
+    section Phase 3: Scaling
+    Incremental Engine        :p3a, p2h, 5d
+    Caching Layer             :p3b, p3a, 4d
+    Cost Monitor              :p3c, p3a, 3d
+    Retry Handler             :p3d, p3a, 3d
+
+    Parallel Executor         :p3e, p2g, 5d
+    Context Optimizer         :p3f, p3e, 4d
+    Progressive Streaming     :p3g, p3f, 3d
+    Hierarchical Summarization :p3h, p3g, 4d
+
+    section Phase 4: Integrations
+    Multi-repo Config         :p4a, p3b, 5d
+    Provider Registry         :p4b, p4a, 4d
+    LLM Adapters              :p4c, p4b, 4d
+
+    Cross-Service Mapper      :p4d, p3h, 5d
+    System Diagram Gen        :p4e, p4d, 4d
+    Unified Doc Builder       :p4f, p4e, 4d
+
+    section Phase 5: Polish
+    Static Export Pipeline    :p5a, p4f, 5d
+    Diagram Exporter          :p5b, p4f, 4d
+    HTML Renderer             :p5c, p5a, 5d
+    Integration Points        :p5d, p5c, 3d

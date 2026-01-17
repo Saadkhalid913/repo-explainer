@@ -35,3 +35,7 @@
 - Incremental run mode that updates docs plus logs precise changes.
 - Progressive output where high-level docs appear early while deeper analysis continues.
 - Token/cost dashboards and safe stop mechanism when hitting thresholds.
+
+## Diagrams
+- Backend architecture: `diagrams/stage_3/backend.mmd`
+- TUI interaction: `diagrams/stage_3/tui.mmd`

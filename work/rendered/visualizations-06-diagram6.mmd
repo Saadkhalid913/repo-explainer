@@ -1,0 +1,28 @@
+```mermaid
+graph LR
+    subgraph HIGH_RISK["High Risk Dependencies"]
+        H1[A1.4: Repo Loader<br/>→ B1.1, B1.2]
+        H2[A2.2: Prompt Templates<br/>→ B2.1, B2.2]
+        H3[B1.4: Component ID<br/>→ A2.2]
+    end
+
+    subgraph MEDIUM_RISK["Medium Risk Dependencies"]
+        M1[A2.5: Cost Tracking<br/>→ B3.1]
+        M2[A3.6: Service Registry<br/>→ B3.5]
+        M3[B2.4: Dep Graph<br/>→ B3.1]
+    end
+
+    subgraph LOW_RISK["Low Risk"]
+        L1[A1.5: Rich UI]
+        L2[B2.7: Call Graph]
+        L3[A4.5: Telemetry]
+    end
+
+    style HIGH_RISK fill:#ffcdd2
+    style MEDIUM_RISK fill:#ffe0b2
+    style LOW_RISK fill:#c8e6c9
+    style H1 stroke:#c62828,stroke-width:2px
+    style H2 stroke:#c62828,stroke-width:2px
+    style H3 stroke:#c62828,stroke-width:2px
+
+```

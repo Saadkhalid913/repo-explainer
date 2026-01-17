@@ -1,0 +1,69 @@
+```mermaid
+flowchart LR
+    subgraph Phase1["Phase 1: Foundation (Week 1-2)"]
+        A1[A1.1: Setup & Structure<br/>4h]
+        A2[A1.2: CLI Scaffolding<br/>6h]
+        A3[A1.3: Config Mgmt<br/>8h]
+        A4[A1.4: Repo Loader<br/>12h]
+        A5[A1.5: Rich UI<br/>4h]
+        A6[A1.6: Logging<br/>4h]
+    end
+
+    subgraph Sync1["Week 2 Sync Point"]
+        S1[Foundation Complete<br/>File System Ready]
+    end
+
+    subgraph Phase2["Phase 2: Intelligence (Week 3-4)"]
+        B1[A2.1: OpenRouter<br/>8h]
+        B2[A2.2: Prompt Templates<br/>8h]
+        B3[A2.3: Context Mgmt<br/>6h]
+        B4[A2.4: Retry Logic<br/>4h]
+        B5[A2.5: Cost Tracking<br/>6h]
+        B6[A2.6: Progress Reporting<br/>6h]
+    end
+
+    subgraph Sync2["Week 4 Sync Point"]
+        S2[Intelligence Complete<br/>End-to-End Analysis]
+    end
+
+    subgraph Phase3["Phase 3: Scaling (Week 5-6)"]
+        C1[A3.1: Incremental Engine<br/>10h]
+        C2[A3.2: Caching Layer<br/>8h]
+        C3[A3.3: Cost Monitor<br/>4h]
+        C4[A3.4: Retry Handler<br/>4h]
+        C5[A3.5: Multi-repo Loader<br/>8h]
+        C6[A3.6: Service Registry<br/>6h]
+    end
+
+    subgraph Sync3["Week 6 Sync Point"]
+        S3[Scaling Complete<br/>Incremental Updates]
+    end
+
+    subgraph Phase4["Phase 4: Integrations (Week 7-8)"]
+        D1[A4.1: Provider Registry<br/>8h]
+        D2[A4.2: LLM Adapters<br/>6h]
+        D3[A4.3: Static Export<br/>8h]
+        D4[A4.4: Diagram Export<br/>4h]
+        D5[A4.5: Telemetry<br/>6h]
+        D6[A4.6: Integration Testing<br/>10h]
+    end
+
+    A1 --> A2 --> A3 --> A4
+    A2 --> A5
+    A3 --> A6
+    A6 --> S1 --> B1 --> B3 --> B4
+    B1 --> B2 --> B5 --> B6
+    B6 --> S2 --> C1 --> C2 --> C3 --> C4
+    C1 --> C5 --> C6
+    C6 --> S3 --> D1 --> D2 --> D3 --> D4
+    D3 --> D5 --> D6
+
+    style Phase1 fill:#e3f2fd
+    style Phase2 fill:#fff3e0
+    style Phase3 fill:#e8f5e9
+    style Phase4 fill:#f3e5f5
+    style S1 fill:#fff59d
+    style S2 fill:#fff59d
+    style S3 fill:#fff59d
+
+```

@@ -35,3 +35,7 @@
 - Detection of architectural/design patterns reported in `patterns/identified-patterns.md`.
 - Complete sequence/ER/dependency/call diagrams stored under `diagrams/` with both `.mmd` and ASCII previews.
 - Enhanced config/progress reporting for longer runs; ability to opt-in/out of certain analyses.
+
+## Diagrams
+- Backend architecture: `diagrams/stage_2/backend.mmd`
+- TUI interaction: `diagrams/stage_2/tui.mmd`

@@ -1,0 +1,37 @@
+```mermaid
+flowchart LR
+    subgraph DevA["Developer A"]
+        A1[A1.3: Config Management]
+        A2[A1.4: Repository Loader]
+        A3[A2.2: Prompt Templates]
+        A4[A2.5: Cost Tracking]
+        A5[A3.6: Service Registry]
+        A6[A4.3: Static Export]
+    end
+
+    subgraph DevB["Developer B"]
+        B1[B1.4: Component ID]
+        B2[B2.1: Pattern Detection]
+        B3[B3.1: Parallel Executor]
+        B4[B3.6: System Diagram]
+        B5[B3.7: Unified Builder]
+        B6[B4.1: HTML Renderer]
+    end
+
+    A1 -.->|Needed for| B6[Markdown Writer]
+    B1 -.->|Informs| A3
+    A2 -.->|Required by| B7[Tree-sitter Python]
+    A2 -.->|Required by| B8[Tree-sitter JS/TS]
+    A3 -.->|Consumed by| B2
+    A4 -.->|Monitored by| B3
+    A5 -.->|Used by| B9[Cross-Service Mapper]
+    A6 -.->|Consumes| B5
+    B5 -.->|Extended by| A7[Diagram Export]
+
+    style DevA fill:#bbdefb
+    style DevB fill:#ffe0b2
+    style A1 stroke:#1565c0,stroke-width:2px
+    style A2 stroke:#1565c0,stroke-width:2px
+    style A4 stroke:#1565c0,stroke-width:2px
+
+```

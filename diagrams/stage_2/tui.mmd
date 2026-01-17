@@ -1,0 +1,12 @@
+sequenceDiagram
+    participant User
+    participant CLI
+    participant Progress as Progress Tracker
+    participant Agents as Parallel Agents
+
+    User->>CLI: run analyze --verbose
+    CLI->>Progress: register subscribers
+    CLI->>Agents: kick off pattern/dependency/diagram jobs
+    Agents-->>Progress: emit status + timers
+    Progress-->>User: live phase/time/token updates
+    CLI-->>User: final report + diagram links

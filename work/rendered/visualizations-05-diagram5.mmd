@@ -1,0 +1,69 @@
+```mermaid
+graph TD
+    START([Project Start])
+
+    subgraph P1["Phase 1: Foundation"]
+        F1[Setup & Structure<br/>Shared]
+        F2A[CLI & Config<br/>Dev A]
+        F2B[Parsing & Components<br/>Dev B]
+        F3A[Repo Loader<br/>Dev A]
+        F3B[Tree-sitter Integration<br/>Dev B]
+        MS1[Milestone 1<br/>Foundation]
+    end
+
+    subgraph P2["Phase 2: Intelligence"]
+        I1A[OpenRouter Integration<br/>Dev A]
+        I1B[Pattern Detection<br/>Dev B]
+        I2A[Prompt Templates<br/>Dev A]
+        I2B[Diagram Generators<br/>Dev B]
+        MS2[Milestone 2<br/>Intelligence]
+    end
+
+    subgraph P3["Phase 3: Scaling"]
+        S1A[Incremental Engine<br/>Dev A]
+        S1B[Parallel Executor<br/>Dev B]
+        S2A[Caching System<br/>Dev A]
+        S2B[Progressive Streaming<br/>Dev B]
+        MS3[Milestone 3<br/>Scaling]
+    end
+
+    subgraph P4["Phase 4: Integrations"]
+        L1A[Multi-repo Support<br/>Dev A]
+        L1B[Cross-Service Mapper<br/>Dev B]
+        L2A[Provider Registry<br/>Dev A]
+        L2B[HTML Export<br/>Dev B]
+        MS4[Milestone 4<br/>Complete]
+    end
+
+    END([Project Complete])
+
+    START --> F1
+    F1 --> F2A & F2B
+    F2A --> F3A
+    F2B --> F3B
+    F3A & F3B --> MS1 --> I1A & I1B
+    I1A --> I2A
+    I1B --> I2B
+    I2A & I2B --> MS2 --> S1A & S1B
+    S1A --> S2A
+    S1B --> S2B
+    S2A & S2B --> MS3 --> L1A & L1B
+    L1A --> L2A
+    L1B --> L2B
+    L2A & L2B --> MS4 --> END
+
+    style F1 fill:#c8e6c9
+    style F2A fill:#e3f2fd
+    style F2B fill:#fff9c4
+    style I1A fill:#e3f2fd
+    style I1B fill:#fff9c4
+    style S1A fill:#e3f2fd
+    style S1B fill:#fff9c4
+    style L1A fill:#e3f2fd
+    style L1B fill:#fff9c4
+    style MS1 fill:#fff59d,stroke:#f57f17,stroke-width:2px
+    style MS2 fill:#fff59d,stroke:#f57f17,stroke-width:2px
+    style MS3 fill:#fff59d,stroke:#f57f17,stroke-width:2px
+    style MS4 fill:#81c784,stroke:#2e7d32,stroke-width:2px
+
+```
