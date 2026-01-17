@@ -1,0 +1,13 @@
+- Python 3.10+
+- Typer (CLI Framework)
+- Rich (Terminal UI)
+- Pydantic (Data Validation & Settings)
+- Tree-sitter (Code Parsing & Static Analysis)
+- GitPython (Git Operations)
+- HTTPX (Async HTTP Client)
+- Tenacity (Retry Logic)
+- PyYAML (Configuration)
+- Jinja2 (Templating - implied for doc generation)
+- Pytest (Testing)
+- Ruff (Linting)
+- Mypy (Type Checking)
