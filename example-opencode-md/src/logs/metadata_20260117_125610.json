@@ -1,0 +1,15 @@
+{
+  "timestamp": "20260117_125610",
+  "repository": "/Users/saadkhalid/Projects/repo-explainer",
+  "depth": "standard",
+  "session_id": null,
+  "success": true,
+  "error": null,
+  "artifacts": {},
+  "opencode_artifacts": [
+    "docs/src/raw/architecture.md",
+    "docs/src/raw/components.mermaid",
+    "docs/src/raw/dataflow.mermaid",
+    "docs/src/raw/tech-stack.txt"
+  ]
+}

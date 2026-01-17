@@ -1,0 +1,31 @@
+sequenceDiagram
+    participant User
+    participant CLI as CLI Entry Point<br/>src/repo_explainer/cli.py
+    participant RL as Repository Loader<br/>src/repo_explainer/repository_loader.py
+    participant OCS as OpenCode Service<br/>src/repo_explainer/opencode_service.py
+    participant OC as OpenCode CLI
+    participant OM as Output Manager<br/>src/repo_explainer/output_manager.py
+    participant DC as Doc Composer<br/>src/repo_explainer/doc_composer.py
+    participant FS as Local Filesystem
+
+    User->>CLI: repo-explain analyze <repo>
+    CLI->>RL: load(repo_path_or_url)
+    RL->>FS: Clone/Resolve repository
+    FS-->>RL: repo_path
+    RL-->>CLI: repo_path
+
+    CLI->>OCS: analyze_architecture()
+    OCS->>OC: opencode run <prompt>
+    OC-->>OCS: Stream JSON events & artifacts
+    OCS-->>CLI: result (OpenCodeResult)
+
+    CLI->>OM: write_analysis_result(result)
+    OM->>FS: Save raw artifacts & logs
+    OM->>DC: compose(repo_path, depth)
+    DC->>FS: Read raw artifacts
+    DC->>OC: (Optional) Fix Mermaid syntax
+    DC->>FS: Render diagrams & Generate subpages
+    DC->>FS: Write index.md
+    DC-->>OM: composed_files
+    OM-->>CLI: output_files
+    CLI->>User: Success message & output path

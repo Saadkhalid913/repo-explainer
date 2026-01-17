@@ -1,0 +1,23 @@
+{
+  "timestamp": "20260117_125610",
+  "files": {
+    "dataflow": "docs/dataflow/overview.md",
+    "components": "docs/diagrams/components.svg",
+    "component_cli": "docs/components/cli.md",
+    "component_repository-loader": "docs/components/repository-loader.md",
+    "component_opencode-service": "docs/components/opencode-service.md",
+    "component_doc-composer": "docs/components/doc-composer.md",
+    "component_output-manager": "docs/components/output-manager.md",
+    "dependencies_overview": "docs/dependencies/overview.md",
+    "dependencies_downstream": "docs/dependencies/downstream.md",
+    "dependencies_upstream": "docs/dependencies/upstream.md",
+    "dependencies_external": "docs/dependencies/external.md",
+    "api_overview": "docs/api/overview.md",
+    "api_endpoint_0": "docs/api/analyze.md",
+    "api_endpoint_1": "docs/api/update.md",
+    "components_overview": "docs/components/overview.md",
+    "tech-stack": "docs/tech-stack/overview.md",
+    "index": "docs/index.md"
+  },
+  "version": "1.0"
+}
