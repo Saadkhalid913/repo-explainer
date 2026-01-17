@@ -21,7 +21,8 @@ class CommitInfo:
     sha: str
     short_sha: str
     message: str
-    author: str
+    author_name: str
+    author_email: str
     date: datetime
     files: list[str]
 
@@ -288,7 +289,8 @@ class RepositoryLoader:
                     sha=commit.hexsha,
                     short_sha=commit.hexsha[:8],
                     message=commit.message.split('\n')[0].strip(),
-                    author=str(commit.author),
+                    author_name=commit.author.name if commit.author else "",
+                    author_email=commit.author.email if commit.author else "",
                     date=commit.committed_datetime,
                     files=files,
                 ))

@@ -752,7 +752,7 @@ def _record_update_history(
             commit_details.append({
                 "sha": c.short_sha,
                 "message": c.message[:100],  # First 100 chars
-                "author": c.author,
+                "author": c.author_name,
                 "date": c.date.isoformat() if hasattr(c.date, 'isoformat') else str(c.date),
             })
         elif isinstance(c, str):

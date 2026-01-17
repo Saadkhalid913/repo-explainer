@@ -109,6 +109,10 @@ graph TD
         HG[HTML Generator<br/>src/repo_explainer/html_generator.py]
     end
 
+    subgraph "Support & Resources"
+        TD[Team Directory<br/>ANOTHERTEST.MD]
+    end
+
     CLI --> RL
     CLI --> ORC
     ORC --> RL

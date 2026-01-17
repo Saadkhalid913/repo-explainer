@@ -290,8 +290,6 @@ class OpenCodeService:
 
         result = self.run_command(
             prompt=prompt,
-            format_type="json",
-            model=self.settings.opencode_model,
             event_callback=event_callback
         )
 

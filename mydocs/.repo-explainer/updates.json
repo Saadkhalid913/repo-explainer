@@ -1,5 +1,88 @@
 [
   {
+    "timestamp": "2026-01-17T15:34:31.332103",
+    "type": "incremental",
+    "summary": "Test updates",
+    "files_changed": 1,
+    "categories": {
+      "tests": [
+        "ANOTHERTEST.MD"
+      ]
+    },
+    "files": [
+      "ANOTHERTEST.MD"
+    ],
+    "commits": [
+      {
+        "sha": "ddb09642",
+        "message": "this is a test",
+        "author": "Maaz Ghazi",
+        "date": "2026-01-17T15:31:52-05:00"
+      },
+      {
+        "sha": "d5afe06d",
+        "message": "THIS IS ANOTHER TEST",
+        "author": "Maaz Ghazi",
+        "date": "2026-01-17T15:13:51-05:00"
+      },
+      {
+        "sha": "181c6f80",
+        "message": "Merge pull request #3 from Saadkhalid913/test_change",
+        "author": "Maaz Ghazi",
+        "date": "2026-01-17T14:53:00-05:00"
+      },
+      {
+        "sha": "a497daf8",
+        "message": "adding contact resource",
+        "author": "MaazGhazi",
+        "date": "2026-01-17T14:40:43-05:00"
+      },
+      {
+        "sha": "7da55d1b",
+        "message": "save",
+        "author": "Saad Khalid",
+        "date": "2026-01-17T13:11:13-05:00"
+      }
+    ],
+    "commit_summaries": [
+      {
+        "summary": "Commit: this is a test",
+        "category": "unknown",
+        "impact_level": "unknown",
+        "breaking_changes": false,
+        "details": "Summary generation failed"
+      },
+      {
+        "summary": "Commit: THIS IS ANOTHER TEST",
+        "category": "unknown",
+        "impact_level": "unknown",
+        "breaking_changes": false,
+        "details": "Summary generation failed"
+      },
+      {
+        "summary": "Commit: Merge pull request #3 from Saadkhalid913/test_change",
+        "category": "unknown",
+        "impact_level": "unknown",
+        "breaking_changes": false,
+        "details": "Summary generation failed"
+      },
+      {
+        "summary": "Commit: adding contact resource",
+        "category": "unknown",
+        "impact_level": "unknown",
+        "breaking_changes": false,
+        "details": "Summary generation failed"
+      },
+      {
+        "summary": "Commit: save",
+        "category": "unknown",
+        "impact_level": "unknown",
+        "breaking_changes": false,
+        "details": "Summary generation failed"
+      }
+    ]
+  },
+  {
     "timestamp": "2026-01-17T15:22:42.030541",
     "type": "incremental",
     "summary": "Test updates",

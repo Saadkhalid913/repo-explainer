@@ -6,6 +6,7 @@ All notable changes to this project will be documented in this file.
 
 ### Added
 - **Team Directory**: Added `ANOTHERTEST.MD` providing comprehensive contact information and directory for engineering teams (Backend, Frontend, DevOps, etc.).
+- **Documentation Update**: Updated `components.json` and `architecture.md` to include and refine the `team-directory` component.
 - **Orchestrator Pattern**: Introduced a central `Orchestrator` to coordinate the analysis pipeline (loader, analyzer, AI runner, and document generation).
 - **OpenCode Runner**: New execution engine that separates AI command logic from the integration service and adds support for fallback AI providers.
 - **Claude CLI Fallback**: Added `ClaudeRunner` to provide analysis capabilities when the OpenCode CLI is not available.
