@@ -12,16 +12,16 @@
 - Repository pattern for storing aggregated metadata about inter-service relations.
 
 **Components**
-- `multi_repo_config`: Defines repo list, shared credentials, service relationships, sequence priorities.
-- `cross_service_mapper`: Links API endpoints, shared libraries, infrastructure patterns between repos.
-- `system_diagram_generator`: Produces high-level system architecture with interactions and shared services.
-- `unified_doc_builder`: Synthesizes documentation across repos with combined indexes and comparison tables.
-- `service_registry`: Captures per-service metadata (version, primary language, dependencies).
+- `multi_repo_config`: Defines repo list, shared credentials, service relationships, sequence priorities, and OpenCode command mappings per service.
+- `cross_service_mapper`: Links API endpoints, shared libraries, infrastructure patterns between repos, and coordinates multi-session OpenCode runs to gather cross-service evidence.
+- `system_diagram_generator`: Produces high-level system architecture with interactions and shared services, combining Graphviz/Mermaid outputs sourced from OpenCode or Claude fallback sessions.
+- `unified_doc_builder`: Synthesizes documentation across repos with combined indexes and comparison tables, importing artifacts from each service’s OpenCode outputs.
+- `service_registry`: Captures per-service metadata (version, primary language, dependencies) plus OpenCode/Claude session IDs for traceability.
 
 **Functionality**
-- Accept a multi-repo manifest and analyze each service, producing per-repo outputs plus a shared system view.
-- Correlate service dependencies, shared libraries, and API interactions across repositories.
-- Allow per-service exclusion rules to keep sensitive code out of analysis outputs.
+- Accept a multi-repo manifest and analyze each service, producing per-repo outputs plus a shared system view by orchestrating multiple OpenCode sessions (one per repo) and aggregating results.
+- Correlate service dependencies, shared libraries, and API interactions across repositories, merging OpenCode facts and locally computed diffs.
+- Allow per-service exclusion rules to keep sensitive code out of analysis outputs, propagating those rules into OpenCode command prompts and Claude fallbacks.
 
 **Agent Architecture**
 - **Pattern**: Facade for multi-repo orchestration, combining concurrent execution with a deterministic aggregation layer — akin to Azure’s concurrent orchestration with an aggregating collector.

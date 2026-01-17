@@ -1,8 +1,8 @@
 # Stage 3 – Scaling Performance
 
 **Technologies**
-- `asyncio` and `concurrent.futures` for parallel analysis threads/processes.
-- `diskcache` or custom caching layer for LLm prompts/responses and repository metadata snapshots.
+- `asyncio` and `concurrent.futures` for parallel analysis threads/processes plus concurrent OpenCode session handling.
+- `diskcache` or custom caching layer for LLM prompts/responses, repository metadata snapshots, and OpenCode session manifests/results.
 - Profiling via `cProfile`/`pyinstrument` in CI to track hotspots.
 - `git` hooks or watchers for detecting incremental changes via `git diff --name-only`.
 
@@ -13,16 +13,16 @@
 - Caching decorator for repeated LLM queries or heavy AST parsing.
 
 **Components**
-- `incremental_engine`: Watches previous analysis metadata, computes diffs, schedules reanalysis only for touched components.
-- `parallel_executor`: Schedules repo parsing, LLM calls, documentation generation while respecting resource limits.
-- `context_optimizer`: Dynamically sizes chunks based on file complexity, merges small files for batching.
-- `cost_monitor`: Tracks token usage/costs, exposes thresholds for warnings.
-- `retry_handler`: Centralizes exponential backoff for network/LLM failures.
+- `incremental_engine`: Watches previous analysis metadata, computes diffs, schedules reanalysis only for touched components, and crafts OpenCode prompts scoped to the diff.
+- `parallel_executor`: Schedules repo parsing, LLM calls, OpenCode sessions, and documentation generation while respecting resource limits; supports multiple OpenCode HTTP sessions simultaneously.
+- `context_optimizer`: Dynamically sizes chunks based on file complexity, merges small files for batching, and decides when to hand context to OpenCode vs. Claude fallback.
+- `cost_monitor`: Tracks token usage/costs, exposes thresholds for warnings, and logs OpenCode token/call estimates per session.
+- `retry_handler`: Centralizes exponential backoff for network/LLM failures, including OpenCode and Claude CLI exit codes.
 
 **Functionality**
-- Detect repository changes via stored metadata and re-run analysis only on altered components.
-- Stream progressive documentation output, allowing early access to overviews while deeper sections finish.
-- Report token/cost usage mid-run and allow graceful shutdown when user-defined limits approach.
+- Detect repository changes via stored metadata and re-run analysis only on altered components, issuing OpenCode requests that target affected directories/files.
+- Stream progressive documentation output from both local analyzers and OpenCode sessions, allowing early access to overviews while deeper sections finish.
+- Report token/cost usage mid-run (including OpenCode session runtimes) and allow graceful shutdown when user-defined limits approach.
 
 **Agent Architecture**
 - **Pattern**: Sequential flow that incorporates observer and command patterns: incremental engine acts as a controller that reruns whichever agents (analysis, diagram regen) are invalidated by diffs.
