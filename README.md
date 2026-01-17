@@ -256,6 +256,29 @@ mmdc --version
 
 **Note:** Documentation will still be generated without Mermaid CLI, but diagrams won't be rendered to SVG. You can manually render them later or view the `.mermaid` source files.
 
+### Mermaid Syntax Errors
+
+If OpenCode generates invalid Mermaid syntax, the tool gracefully handles the error:
+
+```bash
+📚 Composing coherent documentation...
+  Rendering 2 diagram(s)...
+    ⚠ Syntax error in dataflow.mermaid:
+      Source available at dataflow.mermaid
+  ⚠ 2 diagram(s) failed (source files available)
+```
+
+**What happens:**
+- Documentation is still fully generated
+- Failed diagrams show helpful notes in `index.md` and subpages
+- Source `.mermaid` files are available for manual fixing
+- Links to Mermaid documentation provided
+
+**To fix:**
+1. Edit the `.mermaid` file in `docs/` to fix syntax
+2. Manually render: `mmdc -i docs/diagram.mermaid -o docs/diagrams/diagram.svg`
+3. Or view in a Mermaid-compatible editor (VS Code, GitHub, etc.)
+
 ## Project Structure
 
 ```
