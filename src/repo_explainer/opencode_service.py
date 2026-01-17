@@ -9,6 +9,12 @@ from typing import Any, Callable
 from rich.console import Console
 
 from .config import get_settings
+from .prompts import (
+    get_architecture_prompt,
+    get_dependency_mapping_prompt,
+    get_pattern_detection_prompt,
+    get_quick_scan_prompt,
+)
 
 console = Console()
 
@@ -144,31 +150,81 @@ class OpenCodeService:
     def analyze_architecture(
         self, event_callback: Callable[[dict], None] | None = None
     ) -> OpenCodeResult:
-        """Run architecture analysis on the repository."""
-        prompt = """Analyze this repository and generate:
-1. A high-level architecture overview (architecture.md)
-2. Component diagram in Mermaid format (components.mermaid)
-3. Data flow diagram in Mermaid format (dataflow.mermaid)
-4. Technology stack summary (tech-stack.txt)
+        """
+        Run comprehensive architecture analysis on the repository.
 
-Focus on:
-- Main entry points and their responsibilities
-- Core modules/packages and their relationships
-- External dependencies and integrations
-- Data flow between components
-"""
+        Uses the architecture_deep_dive prompt template which includes:
+        - Detailed component analysis with file-to-function mappings
+        - Line-level references for key functions
+        - Dependency graphs (internal and external)
+        - Multiple diagram types (architecture, dataflow, sequence)
+        - Structured JSON output for orchestrators
+
+        Returns:
+            OpenCodeResult with generated artifacts
+        """
+        prompt = get_architecture_prompt()
         return self.run_command(prompt, event_callback=event_callback)
 
     def quick_scan(
         self, event_callback: Callable[[dict], None] | None = None
     ) -> OpenCodeResult:
-        """Run a quick scan of the repository."""
-        prompt = """Perform a quick scan of this repository and summarize:
-1. Primary programming language(s)
-2. Project structure overview
-3. Main entry point(s)
-4. Key dependencies
-"""
+        """
+        Run a quick scan of the repository.
+
+        Uses the quick_scan_v2 prompt template which includes:
+        - Repository summary with language detection
+        - Module index with file-to-component mappings
+        - Technology stack inventory
+        - Basic component registry with file paths
+
+        Optimized for speed while still providing structured output.
+
+        Returns:
+            OpenCodeResult with lightweight analysis artifacts
+        """
+        prompt = get_quick_scan_prompt()
+        return self.run_command(prompt, event_callback=event_callback)
+
+    def detect_patterns(
+        self, event_callback: Callable[[dict], None] | None = None
+    ) -> OpenCodeResult:
+        """
+        Detect architectural and design patterns in the repository.
+
+        Uses the pattern_detection prompt template which:
+        - Identifies architectural patterns (MVC, Microservices, Layered, etc.)
+        - Detects design patterns (Singleton, Factory, Observer, etc.)
+        - Provides evidence with file paths and line numbers
+        - Calculates confidence scores for each detection
+
+        Requires: components.json from prior architecture analysis
+
+        Returns:
+            OpenCodeResult with patterns report and metadata
+        """
+        prompt = get_pattern_detection_prompt()
+        return self.run_command(prompt, event_callback=event_callback)
+
+    def map_dependencies(
+        self, event_callback: Callable[[dict], None] | None = None
+    ) -> OpenCodeResult:
+        """
+        Build comprehensive dependency graphs.
+
+        Uses the dependency_mapping prompt template which:
+        - Extracts external dependencies from package managers
+        - Maps internal component-to-component dependencies
+        - Calculates dependency layers (topological sort)
+        - Detects circular dependencies
+        - Generates visualization-ready dependency graphs
+
+        Requires: components.json from prior architecture analysis
+
+        Returns:
+            OpenCodeResult with dependency analysis and diagrams
+        """
+        prompt = get_dependency_mapping_prompt()
         return self.run_command(prompt, event_callback=event_callback)
 
     def check_available(self) -> bool:

@@ -42,7 +42,6 @@ class OutputManager:
         (self.output_dir / "src" / "raw").mkdir(parents=True, exist_ok=True)
         (self.output_dir / "src" / "logs").mkdir(parents=True, exist_ok=True)
         (self.output_dir / "diagrams").mkdir(exist_ok=True)
-        (self.output_dir / "architecture").mkdir(exist_ok=True)
         (self.output_dir / "components").mkdir(exist_ok=True)
         (self.output_dir / "dataflow").mkdir(exist_ok=True)
         (self.output_dir / "tech-stack").mkdir(exist_ok=True)

@@ -2,26 +2,24 @@
 
 **Version:** 0.1.0
 **Stage:** 1 - MVP Essentials
-**Last Updated:** 2025-01-17 - Coherent documentation added
+**Last Updated:** 2026-01-17 - Coherent docs, diagram pipeline, Git URL loader
 
 ## Changes
 
-### v0.1.0 - Coherent Documentation
+### v0.1.0 - Coherent Documentation + Git URL Workflow
+- **NEW**: Repository cloning pipeline supports local paths or Git URLs with automatic caching under `./tmp/<owner>/<repo>`
+- **NEW**: `--force-clone` flag to refresh remote repositories
+- **NEW**: Rich CLI UX (panels, spinners, verbose event streaming)
 - **NEW**: Coherent documentation generation with `index.md` as the entry point
-- **NEW**: `DocComposer` module generates organized subpages (components.md, dataflow.md, tech-stack.md)
-- **NEW**: Automatic diagram rendering (Mermaid → SVG) via Mermaid CLI
+- **NEW**: `DocComposer` module renders Mermaid diagrams to SVG, emits subpages (components/dataflow/tech-stack), and records `.repo-explainer/coherence.json`
 - **NEW**: Validation script (`validate_coherence.py`) for documentation structure
-- **NEW**: Improved CLI output showing coherent docs first
-- Added Git URL support - analyze remote repositories without cloning manually
-- Repositories are automatically cloned to `./tmp/owner/repo`
-- `--force-clone` flag to re-clone existing repositories
-- `RepositoryLoader` service handles both local paths and Git URLs
-- Fixed OpenCode CLI command syntax to use `opencode run <prompt>`
-- CLI successfully invokes OpenCode and receives JSON output
+- **NEW**: Improved CLI output highlighting coherent docs first, with technical artifacts listed separately
+- Added Git URL detection/parsing + clone reuse via `RepositoryLoader`
+- CLI successfully invokes OpenCode via `opencode run <prompt> --format json --model openrouter/google/gemini-3-flash-preview`
 
 ## Overview
 
-Repository Explainer is a CLI tool that analyzes repositories and generates AI-powered documentation using OpenCode. It supports both **local repositories** and **remote Git URLs** with automatic cloning.
+Repository Explainer is a Typer-based CLI tool that analyzes repositories using OpenCode, then emits a fully navigable documentation bundle. It supports both **local repositories** and **remote Git URLs** and automatically renders diagrams when Mermaid CLI is available.
 
 ## Quick Reference
 
@@ -61,9 +59,9 @@ repo-explain analyze --help
 
 ### `repo-explain analyze`
 
-Analyze a repository and generate documentation, architecture diagrams, and technology stack information.
+Analyze a repository and generate documentation, architecture diagrams, technology stack summaries, and a coherent navigation layer.
 
-Accepts either a **local path** or a **Git URL**. Git URLs are automatically cloned to `./tmp/owner/repo`.
+Accepts either a **local path** or a **Git URL**. Git URLs are cloned to `./tmp/<owner>/<repo>` and reused across runs unless `--force-clone` is set.
 
 **Usage:**
 ```bash
@@ -72,102 +70,89 @@ repo-explain analyze [REPO_PATH_OR_URL] [OPTIONS]
 
 **Arguments:**
 - `REPO_PATH_OR_URL` (optional): Local path or Git URL to analyze (default: current directory `.`)
-  - **Local path**: Relative or absolute path to existing directory
+  - **Local path**: Relative or absolute path to an existing directory
   - **Git URL**: HTTPS, SSH, or Git protocol URL
     - HTTPS: `https://github.com/user/repo`
     - SSH: `git@github.com:user/repo.git`
     - Git: `git://example.com/repo.git`
-  - Git URLs are cloned to `./tmp/owner/repo`
+  - Git URLs are cloned to `./tmp/<owner>/<repo>` with reuse between runs
 
 **Options:**
-- `--depth, -d <TEXT>`: Analysis depth mode (default: `standard`)
-  - `quick`: Fast scan - basic project structure and dependencies
-  - `standard`: Full architecture analysis with diagrams
-  - `deep`: Deep analysis including patterns and optimization suggestions
-
-- `--output, -o <PATH>`: Output directory for generated documentation
-  - If not specified, uses configured output directory (default: `docs/`)
-
-- `--force-clone`: Force re-clone if repository already exists in tmp
-  - Only applicable when using Git URLs
-  - Removes existing clone and re-clones from remote
-  - Useful to get latest changes from remote repository
-
-- `--verbose, -V`: Enable verbose output
-  - Shows OpenCode session IDs
-  - Displays command execution details
-  - Prints full API responses
-  - Shows clone status for Git URLs
-
+- `--depth, -d [quick|standard|deep]`: Analysis depth (default: `standard`)
+  - `quick`: Fast scan – languages, structure, dependencies
+  - `standard`: Full architecture prompt (currently same as deep)
+  - `deep`: Reserved for enriched analysis in later stages
+- `--output, -o PATH`: Output directory for generated documentation (default: `docs/`)
+- `--force-clone`: Remove existing clone for Git URLs before analyzing
+- `--verbose, -V`: Stream OpenCode tool events (files read, commands run, writes)
 - `--help`: Show command help
 
-**Returns:**
-Generated files in the output directory (default: `./docs/`):
+**Workflow:**
+1. Resolve or clone repository via `RepositoryLoader`
+2. Check OpenCode CLI availability
+3. Run selected analysis depth (quick vs architecture prompt)
+4. Copy raw artifacts, logs, metadata, structured JSON into `output/src/`
+5. Compose coherent docs (index + subpages + diagrams) and render `.svg` diagrams when `mmdc` is installed
+6. Print success panel with output location and session data
 
-**Core Files:**
-- `ANALYSIS_SUMMARY.md` - Quick overview of the analysis
-- `analysis_{depth}.json` - Structured JSON output (parsed OpenCode events)
+**Output Layout (default `docs/`):**
+```
+docs/
+├── index.md                    # Main entry point
+├── components/overview.md      # Component architecture + diagram embeds
+├── dataflow/overview.md        # Sequence diagrams, narrative
+├── tech-stack/overview.md      # Normalized tech stack
+├── diagrams/
+│   ├── components.svg
+│   └── dataflow.svg
+└── src/
+    ├── raw/
+    │   ├── architecture.md
+    │   ├── components.mermaid
+    │   ├── dataflow.mermaid
+    │   └── tech-stack.txt
+    ├── ANALYSIS_SUMMARY.md
+    ├── analysis_<depth>.json
+    └── logs/
+        ├── analysis_<timestamp>.txt
+        └── metadata_<timestamp>.json
+```
 
-**Logs Directory:**
-- `logs/analysis_{timestamp}.txt` - Raw OpenCode output
-- `logs/metadata_{timestamp}.json` - Analysis metadata (session ID, timestamp, etc.)
-
-**Future (Coming Soon):**
-- `architecture.md` - Architecture overview
-- `components.mermaid` - Component diagram
-- `dataflow.mermaid` - Data flow diagram
-- `tech-stack.txt` - Technology stack summary
+**Terminal Output Sections:**
+- 📚 Coherent Documentation – human-readable entry points (index + subpages)
+- 🔧 Technical Artifacts – raw/structured files for debugging
+- 💡 Tip – points to `index.md` or `ANALYSIS_SUMMARY.md`
 
 **Examples:**
 
-**Local Repositories:**
+_Local Repositories_
 ```bash
-# Analyze current directory (standard depth)
 repo-explain analyze
-
-# Analyze specific local repo with verbose output
-repo-explain analyze /path/to/repo --verbose
-
-# Quick scan, custom output directory
-repo-explain analyze ./my-project --depth quick --output ./project-docs
+repo-explain analyze /path/to/repo --depth quick --output ./project-docs
+repo-explain analyze . --depth deep --verbose
 ```
 
-**Git URLs:**
+_Remote Git URLs_
 ```bash
-# Analyze remote GitHub repository
 repo-explain analyze https://github.com/torvalds/linux --depth quick
-
-# Analyze with SSH URL
-repo-explain analyze git@github.com:user/repo.git
-
-# Force re-clone to get latest changes
-repo-explain analyze https://github.com/user/repo --force-clone
-
-# Deep analysis of remote repo with verbose output
-repo-explain analyze https://github.com/facebook/react --depth deep --verbose
+repo-explain analyze git@github.com:user/repo.git --force-clone
+repo-explain analyze https://github.com/facebook/react --depth standard --verbose
 ```
 
-**Clone Location:**
+**Clone Location Diagnostics:**
 ```bash
-# Git URLs are cloned to ./tmp/owner/repo
 repo-explain analyze https://github.com/octocat/Hello-World
-# Clones to: ./tmp/octocat/Hello-World
+# -> ./tmp/octocat/Hello-World
 
-# Subsequent runs reuse the existing clone
-repo-explain analyze https://github.com/octocat/Hello-World
-# Output: "Using existing clone: tmp/octocat/Hello-World"
-
-# Force re-clone
 repo-explain analyze https://github.com/octocat/Hello-World --force-clone
-# Output: "Removing existing clone" then "Cloning repository"
+# Outputs "Removing existing clone" then reclones
 ```
-
----
 
 ### `repo-explain update`
 
-**Status:** Coming in future iteration
-Update existing documentation for changed repository files.
+**Status:** Placeholder – incremental update support planned for Stage 3.
+
+Displays a Rich panel explaining the feature is coming soon.
 
 **Usage:**
 ```bash
@@ -177,42 +162,32 @@ repo-explain update [REPO_PATH] [OPTIONS]
 **Options:**
 - `--verbose, -V`: Enable verbose output
 
-**Note:** Currently a placeholder. Will implement incremental analysis in Stage 3.
-
----
-
 ### Global Options
 
 - `--version, -v`: Display application version
   ```bash
   repo-explain --version
-  # Output: repo-explainer v0.1.0
+  # repo-explainer v0.1.0
   ```
-
 - `--help`: Show main help message
-  ```bash
-  repo-explain --help
-  ```
 
 ---
 
 ## Configuration
 
-Configuration is managed via `pydantic-settings` and can be set through environment variables or `.env` files.
-
-### Environment Variables
+Configuration is managed through `pydantic-settings` (env vars or `.env`).
 
 | Variable | Type | Default | Description |
 |----------|------|---------|-------------|
 | `REPO_EXPLAINER_OPENCODE_BINARY` | string | `opencode` | Path to OpenCode CLI binary |
-| `REPO_EXPLAINER_OPENCODE_OUTPUT_FORMAT` | string | `json` | Output format from OpenCode |
-| `REPO_EXPLAINER_OPENCODE_MODEL` | string | `openrouter/google/gemini-3-flash-preview` | Default OpenCode model (`provider/model`) |
-| `REPO_EXPLAINER_ANALYSIS_DEPTH` | string | `standard` | Default analysis depth |
-| `REPO_EXPLAINER_OUTPUT_DIR` | path | `docs/` | Default output directory |
-| `REPO_EXPLAINER_DIAGRAMS_DIR` | path | `diagrams/` | Diagram output directory |
-| `REPO_EXPLAINER_VERBOSE` | bool | `false` | Enable verbose output globally |
+| `REPO_EXPLAINER_OPENCODE_OUTPUT_FORMAT` | string | `json` | Output format (`json` required for event streaming) |
+| `REPO_EXPLAINER_OPENCODE_MODEL` | string | `openrouter/google/gemini-3-flash-preview` | Default OpenCode model |
+| `REPO_EXPLAINER_ANALYSIS_DEPTH` | string | `standard` | Default depth |
+| `REPO_EXPLAINER_OUTPUT_DIR` | path | `docs/` | Where results are written |
+| `REPO_EXPLAINER_DIAGRAMS_DIR` | path | `diagrams/` | (Reserved for future multi-doc workflows) |
+| `REPO_EXPLAINER_VERBOSE` | bool | `false` | Verbose streaming toggle |
 
-**Example `.env` file:**
+**Example `.env`:**
 ```env
 REPO_EXPLAINER_OPENCODE_BINARY=/usr/local/bin/opencode
 REPO_EXPLAINER_OPENCODE_MODEL=openrouter/google/gemini-3-flash-preview
@@ -223,347 +198,51 @@ REPO_EXPLAINER_OUTPUT_DIR=./generated-docs
 **Python API:**
 ```python
 from repo_explainer.config import get_settings
-
 settings = get_settings()
-print(settings.opencode_binary)  # "opencode"
-print(settings.output_dir)        # Path("docs")
+print(settings.output_dir)
 ```
 
 ---
 
 ## Services
 
-### RepositoryLoader
+### RepositoryLoader (`src/repo_explainer/repository_loader.py`)
 
-Service for loading repositories from local paths or Git URLs.
+Handles local path resolution and Git URL cloning to `./tmp`. Reuses existing clones unless `force_clone=True`.
 
-**Location:** `src/repo_explainer/repository_loader.py`
+Key methods:
+- `load(path_or_url, force_clone=False) -> Path`
+- `is_git_url(path_or_url) -> bool`
+- `parse_git_url(git_url) -> (owner, repo)`
+- `get_clone_path(git_url) -> Path`
+- `clone_repository(git_url, force=False)`
+- `cleanup(owner=None, repo=None)`
 
-**Class:** `RepositoryLoader`
+### OpenCodeService (`src/repo_explainer/opencode_service.py`)
 
-#### Constructor
+Wrapper around the `opencode` CLI with line-by-line JSON streaming.
 
-```python
-RepositoryLoader(tmp_dir: Path = Path("./tmp"))
-```
+Key capabilities:
+- `check_available()` – verifies `opencode --version`
+- `quick_scan()` – light prompt for languages/structure
+- `analyze_architecture()` – architecture prompt requesting markdown + mermaid + tech stack
+- `run_command(prompt, command=None, event_callback=None)` – base executor (used for depth variants)
 
-**Parameters:**
-- `tmp_dir` (Path, optional): Directory to store cloned repositories (default: `./tmp`)
+### OutputManager (`src/repo_explainer/output_manager.py`)
 
-**Example:**
-```python
-from pathlib import Path
-from repo_explainer.repository_loader import RepositoryLoader
+Responsible for copying artifacts from the analyzed repo into the output directory, writing logs/metadata/summaries, storing structured JSON, and invoking `DocComposer`.
 
-loader = RepositoryLoader(tmp_dir=Path("./my-tmp"))
-```
+### DocComposer (`src/repo_explainer/doc_composer.py`)
 
-#### Methods
+Transforms raw artifacts into coherent docs.
+- Renders `.mermaid` → `.svg` via Mermaid CLI with retry + OpenCode auto-fix fallback
+- Creates `index.md`, `components/overview.md`, `dataflow/overview.md`, `tech-stack/overview.md`
+- Embeds diagrams / includes helpful fallback instructions if rendering fails
+- Produces `.repo-explainer/coherence.json` manifest for validation
 
-##### `load(path_or_url: str, force_clone: bool = False) -> Path`
+### validate_coherence (`validate_coherence.py`)
 
-Load a repository from a local path or Git URL. This is the main method you'll use.
-
-**Parameters:**
-- `path_or_url` (str): Local path or Git URL
-- `force_clone` (bool): If True, remove and re-clone existing repositories
-
-**Returns:** Path to the repository (either the input path or cloned path)
-
-**Example:**
-```python
-loader = RepositoryLoader()
-
-# Load local path
-local_path = loader.load("./my-project")
-# Returns: Path('./my-project')
-
-# Load Git URL (clones to ./tmp/user/repo)
-remote_path = loader.load("https://github.com/user/repo")
-# Returns: Path('./tmp/user/repo')
-
-# Force re-clone
-fresh_clone = loader.load("https://github.com/user/repo", force_clone=True)
-```
-
-##### `is_git_url(path_or_url: str) -> bool` (static)
-
-Check if a string is a Git URL.
-
-**Parameters:**
-- `path_or_url` (str): String to check
-
-**Returns:** True if it's a Git URL, False otherwise
-
-**Example:**
-```python
-RepositoryLoader.is_git_url("https://github.com/user/repo")  # True
-RepositoryLoader.is_git_url("git@github.com:user/repo.git")  # True
-RepositoryLoader.is_git_url("./local/path")  # False
-```
-
-##### `parse_git_url(git_url: str) -> Tuple[str, str]` (static)
-
-Parse a Git URL to extract owner and repository name.
-
-**Parameters:**
-- `git_url` (str): Git URL to parse
-
-**Returns:** Tuple of (owner, repo_name)
-
-**Example:**
-```python
-owner, repo = RepositoryLoader.parse_git_url("https://github.com/torvalds/linux")
-# owner = "torvalds", repo = "linux"
-
-owner, repo = RepositoryLoader.parse_git_url("git@github.com:user/repo.git")
-# owner = "user", repo = "repo"
-```
-
-##### `get_clone_path(git_url: str) -> Path`
-
-Get the local path where a Git URL will be cloned.
-
-**Parameters:**
-- `git_url` (str): Git URL
-
-**Returns:** Path where the repository will be cloned
-
-**Example:**
-```python
-loader = RepositoryLoader()
-path = loader.get_clone_path("https://github.com/torvalds/linux")
-# Returns: Path('./tmp/torvalds/linux')
-```
-
-##### `clone_repository(git_url: str, force: bool = False) -> Path`
-
-Clone a Git repository to the tmp directory.
-
-**Parameters:**
-- `git_url` (str): Git URL to clone
-- `force` (bool): If True, remove existing directory and re-clone
-
-**Returns:** Path to the cloned repository
-
-**Example:**
-```python
-loader = RepositoryLoader()
-
-# Clone repository
-path = loader.clone_repository("https://github.com/octocat/Hello-World")
-# Clones to: ./tmp/octocat/Hello-World
-
-# Re-clone
-path = loader.clone_repository("https://github.com/octocat/Hello-World", force=True)
-```
-
-##### `cleanup(owner: str | None = None, repo: str | None = None) -> None`
-
-Clean up cloned repositories.
-
-**Parameters:**
-- `owner` (str, optional): If provided, only clean this owner's repos
-- `repo` (str, optional): If provided (with owner), only clean this specific repo
-
-**Example:**
-```python
-loader = RepositoryLoader()
-
-# Clean specific repo
-loader.cleanup(owner="torvalds", repo="linux")
-
-# Clean all repos for owner
-loader.cleanup(owner="torvalds")
-
-# Clean entire tmp directory
-loader.cleanup()
-```
-
----
-
-### DocComposer
-
-Service for generating coherent, navigable documentation from OpenCode artifacts.
-
-**Location:** `src/repo_explainer/doc_composer.py`
-
-**Class:** `DocComposer`
-
-#### Constructor
-
-```python
-DocComposer(output_dir: Path)
-```
-
-**Parameters:**
-- `output_dir` (Path): Directory containing OpenCode artifacts and where composed docs will be written
-
-**Example:**
-```python
-from pathlib import Path
-from repo_explainer.doc_composer import DocComposer
-
-composer = DocComposer(output_dir=Path("./docs"))
-```
-
-#### Methods
-
-##### `compose(repo_path, depth, session_id=None, timestamp=None) -> dict[str, Path]`
-
-Compose coherent documentation from raw OpenCode artifacts.
-
-**Parameters:**
-- `repo_path` (Path): Path to analyzed repository
-- `depth` (str): Analysis depth (quick, standard, deep)
-- `session_id` (str, optional): OpenCode session ID
-- `timestamp` (str, optional): Analysis timestamp (auto-generated if not provided)
-
-**Returns:**
-- Dictionary mapping document types to file paths
-
-**Generated files:**
-- `index.md` - Main entry point with navigation and embedded diagrams
-- `components.md` - Component architecture documentation
-- `dataflow.md` - Data flow visualization and narrative
-- `tech-stack.md` - Normalized technology stack list
-- `diagrams/*.svg` - Rendered diagram files (if Mermaid CLI is available)
-- `.repo-explainer/coherence.json` - Manifest of generated files
-
-**Example:**
-```python
-from pathlib import Path
-from repo_explainer.doc_composer import DocComposer
-
-composer = DocComposer(output_dir=Path("./docs"))
-composed_files = composer.compose(
-    repo_path=Path("./my-repo"),
-    depth="standard",
-    session_id="ses_abc123",
-    timestamp="20260117_120000"
-)
-
-# composed_files contains:
-# {
-#   "index": Path("./docs/index.md"),
-#   "components": Path("./docs/components.md"),
-#   "dataflow": Path("./docs/dataflow.md"),
-#   "tech-stack": Path("./docs/tech-stack.md"),
-#   "dataflow": Path("./docs/diagrams/dataflow.svg"),
-#   "manifest": Path("./docs/.repo-explainer/coherence.json")
-# }
-```
-
-**Requirements:**
-- OpenCode artifacts must exist in `output_dir`:
-  - `architecture.md` (optional)
-  - `components.mermaid` (optional)
-  - `dataflow.mermaid` (optional)
-  - `tech-stack.txt` (optional)
-- Mermaid CLI (`mmdc`) for diagram rendering (optional - gracefully degrades if not available)
-
-**Behavior:**
-1. Scans for `.mermaid` files and renders them to SVG
-2. Generates normalized subpages from raw artifacts
-3. Creates `index.md` with navigation and embedded diagrams
-4. Generates manifest file for tracking
-
----
-
-### OpenCodeService
-
-Service for interacting with OpenCode CLI.
-
-**Location:** `src/repo_explainer/opencode_service.py`
-
-**Class:** `OpenCodeService`
-
-#### Constructor
-
-```python
-OpenCodeService(repo_path: Path)
-```
-
-**Parameters:**
-- `repo_path`: Path to the repository to analyze
-
-**Example:**
-```python
-from pathlib import Path
-from repo_explainer.opencode_service import OpenCodeService
-
-service = OpenCodeService(Path("/path/to/repo"))
-```
-
-#### Methods
-
-##### `run_command(prompt: str, command: str | None = None) -> OpenCodeResult`
-
-Execute an arbitrary OpenCode command.
-
-**Parameters:**
-- `prompt` (str): The prompt to send to OpenCode
-- `command` (str, optional): Custom command name (e.g., `project:analyze-architecture`)
-
-**Returns:** `OpenCodeResult` dataclass with fields:
-- `success` (bool): Whether command succeeded
-- `output` (str): Raw output from OpenCode
-- `error` (str | None): Error message if failed
-- `session_id` (str | None): OpenCode session ID
-- `artifacts` (dict): Parsed JSON artifacts from output
-
-**Example:**
-```python
-result = service.run_command(
-    prompt="Analyze this repo structure",
-    command="project:custom-command"
-)
-
-if result.success:
-    print(f"Session: {result.session_id}")
-    print(f"Artifacts: {result.artifacts}")
-else:
-    print(f"Error: {result.error}")
-```
-
-##### `analyze_architecture() -> OpenCodeResult`
-
-Run full architecture analysis.
-
-**Returns:** `OpenCodeResult` with architecture, component diagram, dataflow diagram, and tech stack
-
-**Example:**
-```python
-result = service.analyze_architecture()
-if result.success:
-    print("Analysis complete!")
-    print(result.artifacts)
-```
-
-##### `quick_scan() -> OpenCodeResult`
-
-Run a quick scan of the repository.
-
-**Returns:** `OpenCodeResult` with basic project information
-
-**Example:**
-```python
-result = service.quick_scan()
-```
-
-##### `check_available() -> bool`
-
-Check if OpenCode CLI is available.
-
-**Returns:** `True` if OpenCode is accessible, `False` otherwise
-
-**Example:**
-```python
-if service.check_available():
-    print("OpenCode is ready")
-else:
-    print("OpenCode not found - install it or set REPO_EXPLAINER_OPENCODE_BINARY")
-```
+Standalone validator that ensures generated docs follow the expected structure.
 
 ---
 
@@ -571,252 +250,91 @@ else:
 
 ### Testing the CLI
 
-#### 1. Verify Installation
-
+1. **Verify Installation**
 ```bash
-# Check version
 repo-explain --version
-# Output: repo-explainer v0.1.0
-
-# View help
 repo-explain --help
-
-# View analyze command help
 repo-explain analyze --help
 ```
 
-#### 2. Test Quick Analysis (Recommended First)
-
-Start with a quick analysis to verify OpenCode integration:
-
+2. **Quick Analysis Smoke Test**
 ```bash
 repo-explain analyze . --depth quick --verbose
 ```
+Check that OpenCode is available, JSON events stream, and the run completes.
 
-**What to look for:**
-- "OpenCode available" check passes
-- No "OpenCode binary not found" error
-- JSON output from OpenCode (showing `sessionID`, `tool_use`, etc.)
-- Analysis completes without timeout
-
-**Sample Output:**
-```
-╭──────────────────────────────────────────────────────╮
-│ Repository Explainer v0.1.0                          │
-│ Analyzing: /Users/saadkhalid/Projects/repo-explainer │
-╰──────────────────────────────────────────────────────╯
-⠇ OpenCode available
-
-Running quick analysis...
-
-Running: opencode run Perform a quick scan...
-⠋ Analyzing repository (quick mode)...
-
-Analysis complete!
-
-Output:
-{"type":"step_start",...}  # JSON streaming output
-```
-
-#### 3. Test Standard Analysis
-
+3. **Standard Analysis**
 ```bash
 repo-explain analyze . --depth standard
 ```
 
-This runs a deeper analysis with architecture diagrams and component mapping.
-
-#### 4. Test with Custom Output Directory
-
+4. **Custom Output Directory**
 ```bash
 repo-explain analyze . --depth quick --output ./my-analysis --verbose
+ls -la ./my-analysis
 ```
 
-Verify that `./my-analysis/` directory is created with output files.
-
-#### 5. Test Configuration Environment Variables
-
+5. **Environment Variable Overrides**
 ```bash
 export REPO_EXPLAINER_VERBOSE=true
 export REPO_EXPLAINER_OUTPUT_DIR=./generated-docs
-
 repo-explain analyze . --depth quick
 ```
 
-Verify that settings are applied from environment.
-
-#### 6. Full Integration Test
-
+6. **Full Integration Script**
 ```bash
-# Clean test
-rm -rf test-output
-
-# Run analysis with all options
-repo-explain analyze . \
-  --depth standard \
-  --output test-output \
-  --verbose
-
-# Verify output directory exists
-ls -la test-output/
+bash test_cli.sh
 ```
+Runs version/help tests, quick analysis, Git URL clone/reuse/force-clone scenarios.
 
-**Validation Checklist:**
-- [ ] `repo-explain --version` shows v0.1.0
-- [ ] `repo-explain --help` displays command list
-- [ ] `repo-explain analyze --help` shows all options
-- [ ] `repo-explain analyze . --depth quick --verbose` completes successfully
-- [ ] OpenCode session ID is displayed in verbose output
-- [ ] No timeouts or "binary not found" errors
-- [ ] Custom output directory is created when specified
-- [ ] Environment variables are respected
-- [ ] Help text displays correctly for all commands
-- [ ] Git URLs are cloned to ./tmp/owner/repo
-- [ ] Existing clones are reused
-- [ ] `--force-clone` re-clones repositories
-
-#### 7. Test Git URL Support
-
-**Test with a small public repository:**
+7. **Validate Coherent Docs**
 ```bash
-# Clone and analyze
-repo-explain analyze https://github.com/octocat/Hello-World --depth quick
-
-# Verify clone location
-ls -la tmp/octocat/Hello-World/
-
-# Test reuse of existing clone
-repo-explain analyze https://github.com/octocat/Hello-World --depth quick
-# Should output: "Using existing clone: tmp/octocat/Hello-World"
-
-# Test force re-clone
-repo-explain analyze https://github.com/octocat/Hello-World --force-clone --depth quick
-# Should output: "Removing existing clone" then "Cloning repository"
+python validate_coherence.py docs
 ```
+Ensures index/subpages/diagrams/manifest exist and links resolve.
 
-**Expected Output (first run):**
+### Troubleshooting
+
+**OpenCode Not Found**
 ```
-Cloning repository: https://github.com/octocat/Hello-World
-Destination: tmp/octocat/Hello-World
-Clone successful!
-╭────────────────────────────────────╮
-│ Repository Explainer v0.1.0        │
-│ Analyzing: tmp/octocat/Hello-World │
-╰────────────────────────────────────╯
-⠇ OpenCode available
-
-Running quick analysis...
-...
-Analysis complete!
+Warning: OpenCode CLI not found...
 ```
+- Install OpenCode CLI or set `REPO_EXPLAINER_OPENCODE_BINARY`
 
-**Expected Output (subsequent runs):**
-```
-Using existing clone: tmp/octocat/Hello-World
-╭────────────────────────────────────╮
-│ Repository Explainer v0.1.0        │
-│ Analyzing: tmp/octocat/Hello-World │
-╰────────────────────────────────────╯
-...
-```
-
-### Common Issues
-
-#### OpenCode Not Found
-
-**Error Message:**
-```
-Warning: OpenCode CLI not found. Please install OpenCode or ensure it's in your PATH.
-Tip: Set REPO_EXPLAINER_OPENCODE_BINARY to specify a custom path.
-```
-
-**Solution:**
-1. Install OpenCode CLI
-2. Or set the binary path:
-   ```bash
-   export REPO_EXPLAINER_OPENCODE_BINARY=/path/to/opencode
-   repo-explain analyze .
-   ```
-
-#### Command Timeout
-
-**Error Message:**
+**Command Timeout**
 ```
 OpenCode command timed out after 5 minutes
 ```
+- Large repos: start with `--depth quick`
 
-**Solution:**
-- Repository might be very large
-- Check system resources
-- Try with `--depth quick` first
-
-#### Output Directory Issues
-
-**Error Message:**
+**Output Directory Issues**
 ```
 Cannot create output directory
 ```
+- Ensure parent exists / permissions ok / set `--output`
 
-**Solution:**
-- Ensure parent directories exist
-- Check write permissions
-- Set custom output path:
-  ```bash
-  repo-explain analyze . --output ./my-docs
-  ```
+**Git Clone Failures**
+- Validate URL, credentials, network, disk space
+- Use `repo-explain analyze <url> --force-clone` after cleanup
 
-#### Git Clone Failures
+**Mermaid CLI Missing**
+- Install via `npm install -g @mermaid-js/mermaid-cli`
+- Docs still generate; `.mermaid` sources are linked with instructions
 
-**Error Message:**
-```
-Error loading repository: Failed to clone repository: ...
-```
-
-**Common Causes & Solutions:**
-
-1. **Invalid Git URL:**
-   - Check URL format is correct
-   - Supported formats: `https://`, `git@`, `ssh://`, `git://`
-
-2. **Authentication Required:**
-   - For private repos, ensure SSH keys are set up
-   - Or use HTTPS with credentials
-   - Git credentials must be configured on your system
-
-3. **Network Issues:**
-   - Check internet connection
-   - Try cloning manually: `git clone <url>`
-   - Some firewalls may block git:// protocol
-
-4. **Disk Space:**
-   - Ensure sufficient disk space in ./tmp directory
-   - Large repos may need significant space
-
-**Clean up clones:**
-```bash
-# Remove specific repo
-rm -rf tmp/owner/repo
-
-# Remove all clones
-rm -rf tmp/
-```
+**Mermaid Syntax Errors**
+- DocComposer auto-fixes via OpenCode when possible
+- Fallback instructions appear inside components/dataflow pages
 
 ---
 
 ## Examples
 
-### Example 1: Quick Project Overview
+1. **Quick Project Overview**
 ```bash
 repo-explain analyze ./my-python-project --depth quick --verbose
 ```
 
-Output shows:
-- Project language(s)
-- Structure overview
-- Main entry points
-- Key dependencies
-
-### Example 2: Full Analysis with Custom Output
+2. **Full Analysis with Custom Output**
 ```bash
 repo-explain analyze /path/to/repo \
   --depth standard \
@@ -824,97 +342,51 @@ repo-explain analyze /path/to/repo \
   --verbose
 ```
 
-Generates in `project-documentation/`:
-- `architecture.md` - Complete architecture
-- `components.mermaid` - Component relationships
-- `dataflow.mermaid` - Data flow
-- `tech-stack.txt` - Technology summary
-
-### Example 3: Using Environment Variables
+3. **Environment Variables**
 ```bash
-export REPO_EXPLAINER_OUTPUT_DIR=./docs
-export REPO_EXPLAINER_VERBOSE=true
-
-repo-explain analyze . --depth standard
+REPO_EXPLAINER_OUTPUT_DIR=./docs REPO_EXPLAINER_VERBOSE=true \
+  repo-explain analyze . --depth standard
 ```
 
-### Example 4: Analyzing Remote GitHub Repository
+4. **Remote GitHub Repository**
 ```bash
-# Quick scan of a popular open-source project
 repo-explain analyze https://github.com/facebook/react --depth quick
 ```
 
-**What happens:**
-1. Repository is cloned to `./tmp/facebook/react`
-2. Quick analysis runs on the cloned repository
-3. Results are displayed in terminal
-4. Clone is preserved for future runs
-
-### Example 5: Force Re-clone for Latest Changes
+5. **Force Re-clone**
 ```bash
-# Get latest changes and re-analyze
 repo-explain analyze https://github.com/torvalds/linux \
-  --force-clone \
-  --depth standard \
-  --verbose
+  --force-clone --depth standard --verbose
 ```
 
-**When to use:**
-- Repository has been updated remotely
-- You want to ensure you're analyzing the latest code
-- Previous clone may be corrupted
-
-### Example 6: Analyzing Multiple Repositories
+6. **Multiple Repositories in a Loop**
 ```bash
-# Analyze several repos in sequence
-for repo in \
-  "https://github.com/user/repo1" \
-  "https://github.com/user/repo2" \
-  "https://github.com/user/repo3"; do
+for repo in ...; do
   repo-explain analyze "$repo" --depth quick
-done
 ```
 
-**Result:**
-```
-./tmp/
-├── user/
-│   ├── repo1/  # Cloned and analyzed
-│   ├── repo2/  # Cloned and analyzed
-│   └── repo3/  # Cloned and analyzed
-```
-
-### Example 7: Using SSH URLs (Private Repos)
+7. **SSH URL for Private Repo**
 ```bash
-# Analyze private repository with SSH
-repo-explain analyze git@github.com:myorg/private-repo.git \
-  --depth standard
-
-# Prerequisites:
-# - SSH key added to GitHub
-# - ssh-agent running with key loaded
+repo-explain analyze git@github.com:myorg/private-repo.git --depth standard
 ```
 
 ---
 
 ## Future API Changes
 
-The following features are planned for future stages:
+- **Stage 2:** Pattern detection, dependency mapping, richer diagrams
+- **Stage 3:** Incremental `update` command, caching/intelligent diffs
+- **Stage 4:** Multi-repository analysis
+- **Stage 5:** Interactive HTML output, IDE integrations, multi-LLM provider support
 
-- **Stage 2**: Pattern detection, dependency mapping, richer diagrams
-- **Stage 3**: Incremental analysis, caching, parallel execution
-- **Stage 4**: Multi-repository analysis
-- **Stage 5**: Interactive HTML output, IDE integrations, multiple LLM providers
-
-See `stages/` directory for detailed roadmap.
+Roadmap details live in `stages/`.
 
 ---
 
 ## Contributing
 
-When making changes to the API:
-1. Update this file immediately
+1. Update `docs.md` for any API changes
 2. Update `.claude.md` if guidelines change
 3. Update `stages/stage_1.md` checklist
-4. Test changes before committing
-5. Commit with clear message describing API changes
+4. Run `bash test_cli.sh` (or relevant subset)
+5. Submit concise commit with summary of changes
