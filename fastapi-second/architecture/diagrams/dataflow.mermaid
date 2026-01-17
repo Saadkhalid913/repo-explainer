@@ -1,0 +1,28 @@
+sequenceDiagram
+    participant Client
+    participant ASGI_Server
+    participant Middleware
+    participant APIRouter
+    participant Dependency_System
+    participant Endpoint
+    participant Data_Validator
+
+    Client->>ASGI_Server: HTTP Request
+    ASGI_Server->>Middleware: ASGI Scope/Receive/Send
+    Middleware->>APIRouter: Request
+    APIRouter->>APIRouter: Match Route
+    APIRouter->>Dependency_System: Solve Dependencies (Request)
+    Dependency_System-->>APIRouter: Dependency Values
+    APIRouter->>Data_Validator: Validate Request Body/Params
+    Data_Validator-->>APIRouter: Validated Data / Error
+    
+    alt Validation Failed
+        APIRouter-->>Client: 422 Validation Error
+    else Validation Passed
+        APIRouter->>Endpoint: Call(Dependencies, Data)
+        Endpoint-->>APIRouter: Response Data
+        APIRouter->>Data_Validator: Validate/Serialize Response
+        Data_Validator-->>APIRouter: Serialized JSON
+        APIRouter->>Middleware: Response
+        Middleware->>Client: HTTP Response
+    end

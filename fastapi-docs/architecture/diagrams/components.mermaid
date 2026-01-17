@@ -1,0 +1,54 @@
+classDiagram
+    class FastAPI {
+        +openapi_schema
+        +setup()
+        +openapi()
+        +include_router()
+    }
+
+    class Starlette {
+        +add_middleware()
+        +add_route()
+    }
+
+    class APIRouter {
+        +routes: list
+        +get()
+        +post()
+        +include_router()
+    }
+
+    class APIRoute {
+        +path: str
+        +endpoint: Callable
+        +response_model: Type
+        +get_route_handler()
+    }
+
+    class Dependant {
+        +call: Callable
+        +path_params: list
+        +query_params: list
+        +body_params: list
+        +dependencies: list
+    }
+
+    class ModelField {
+        +name: str
+        +type_: Type
+        +validate()
+    }
+
+    class DependencyUtils {
+        +solve_dependencies()
+        +get_dependant()
+    }
+
+    FastAPI --|> Starlette : Inherits
+    FastAPI *-- APIRouter : Has main router
+    APIRouter o-- APIRoute : Contains routes
+    APIRoute *-- Dependant : Has root dependency
+    Dependant o-- Dependant : Has sub-dependencies
+    Dependant o-- ModelField : Validates params
+    APIRoute ..> DependencyUtils : Uses to solve
+    ModelField ..> Pydantic : Wraps

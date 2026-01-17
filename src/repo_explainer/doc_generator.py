@@ -253,7 +253,7 @@ Component dependency graph:
             for dep in external_deps:
                 content += f"- {dep}\n"
         else:
-            content += "*Run with --deep flag to extract external dependencies*\n"
+            content += "*No external dependencies detected from import analysis.*\n"
 
         deps_path = self.output_dir / "dependencies" / "internal.md"
         deps_path.write_text(content)
@@ -277,7 +277,7 @@ Component dependency graph:
             for pattern in patterns:
                 content += f"- {pattern}\n"
         else:
-            content += "*No patterns explicitly identified. Run with --deep flag for pattern detection.*\n"
+            content += "*No patterns explicitly identified. AI analysis may detect additional patterns.*\n"
 
         patterns_path = self.output_dir / "patterns" / "identified-patterns.md"
         patterns_path.write_text(content)

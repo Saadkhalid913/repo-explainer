@@ -73,7 +73,61 @@ class CodeAnalyzer:
                 if component:
                     components.append(component)
 
+        # Build dependency graph between components
+        self._analyze_dependencies(components, repo_path)
+
         return components
+
+    def _analyze_dependencies(
+        self, components: list[ComponentInfo], repo_path: Path
+    ) -> None:
+        """Analyze import statements to build dependency graph between components."""
+        component_names = {c.id for c in components}
+        
+        for component in components:
+            internal_deps: set[str] = set()
+            external_deps: set[str] = set()
+            
+            for file_path in component.files:
+                full_path = repo_path / file_path
+                if not full_path.exists():
+                    continue
+                    
+                if full_path.suffix == ".py":
+                    structure = self.extract_python_structure(full_path)
+                    for imp in structure.get("imports", []):
+                        # Check if this import matches another component
+                        top_module = imp.split(".")[0]
+                        if top_module in component_names and top_module != component.id:
+                            internal_deps.add(top_module)
+                        elif not imp.startswith("."):
+                            # External dependency (not relative import)
+                            external_deps.add(top_module)
+                            
+                elif full_path.suffix in (".js", ".jsx", ".ts", ".tsx"):
+                    # Simple regex-based import extraction for JS/TS
+                    try:
+                        content = full_path.read_text(encoding="utf-8")
+                        import re
+                        # Match import statements
+                        for match in re.finditer(r"(?:import|require)\s*\(?['\"]([^'\"]+)['\"]", content):
+                            imp = match.group(1)
+                            if imp.startswith("."):
+                                # Relative import - check if it crosses into another component
+                                continue
+                            top_module = imp.split("/")[0]
+                            if top_module in component_names and top_module != component.id:
+                                internal_deps.add(top_module)
+                            elif not top_module.startswith("@"):
+                                external_deps.add(top_module)
+                            elif top_module.startswith("@"):
+                                # Scoped package
+                                external_deps.add(imp.split("/")[0] + "/" + imp.split("/")[1] if "/" in imp else top_module)
+                    except (UnicodeDecodeError, OSError):
+                        continue
+            
+            component.dependencies = list(internal_deps)
+            component.external_dependencies = list(external_deps)
 
     def _analyze_directory(
         self, dir_path: Path, repo_root: Path

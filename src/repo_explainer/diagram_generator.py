@@ -1,5 +1,7 @@
 """Diagram generator for Mermaid diagrams."""
 
+import subprocess
+import shutil
 from pathlib import Path
 from typing import Optional
 
@@ -13,6 +15,26 @@ class DiagramGenerator:
         self.output_dir = output_dir
         self.diagrams_dir = output_dir / "architecture" / "diagrams"
         self.diagrams_dir.mkdir(parents=True, exist_ok=True)
+        self._mmdc_path = shutil.which("mmdc")
+
+    def _convert_to_png(self, mmd_path: Path) -> Optional[Path]:
+        """Convert a .mmd file to PNG using mermaid-cli."""
+        if not self._mmdc_path:
+            return None
+
+        png_path = mmd_path.with_suffix(".png")
+        try:
+            result = subprocess.run(
+                [self._mmdc_path, "-i", str(mmd_path), "-o", str(png_path), "-b", "transparent"],
+                capture_output=True,
+                text=True,
+                timeout=60,
+            )
+            if result.returncode == 0 and png_path.exists():
+                return png_path
+        except (subprocess.TimeoutExpired, subprocess.SubprocessError):
+            pass
+        return None
 
     def generate_architecture_diagram(
         self,
@@ -28,12 +50,15 @@ class DiagramGenerator:
 
         output_path = self.diagrams_dir / "high-level.mmd"
         output_path.write_text(mermaid_code)
+        
+        # Convert to PNG
+        png_path = self._convert_to_png(output_path)
 
         return DiagramInfo(
             diagram_type=DiagramType.ARCHITECTURE,
             title="High-Level Architecture",
             mermaid_code=mermaid_code,
-            output_path=output_path,
+            output_path=png_path or output_path,
             related_components=[c.id for c in components],
         )
 
@@ -50,12 +75,15 @@ class DiagramGenerator:
 
         output_path = self.diagrams_dir / "component-diagram.mmd"
         output_path.write_text(mermaid_code)
+        
+        # Convert to PNG
+        png_path = self._convert_to_png(output_path)
 
         return DiagramInfo(
             diagram_type=DiagramType.COMPONENT,
             title="Component Relationships",
             mermaid_code=mermaid_code,
-            output_path=output_path,
+            output_path=png_path or output_path,
             related_components=[c.id for c in components],
         )
 
@@ -72,12 +100,15 @@ class DiagramGenerator:
 
         output_path = self.diagrams_dir / "dataflow.mmd"
         output_path.write_text(mermaid_code)
+        
+        # Convert to PNG
+        png_path = self._convert_to_png(output_path)
 
         return DiagramInfo(
             diagram_type=DiagramType.DATAFLOW,
             title="Data Flow",
             mermaid_code=mermaid_code,
-            output_path=output_path,
+            output_path=png_path or output_path,
             related_components=[c.id for c in components],
         )
 
@@ -236,10 +267,13 @@ class DiagramGenerator:
         # Copy to our diagrams directory
         dest_path = self.diagrams_dir / diagram_path.name
         dest_path.write_text(mermaid_code)
+        
+        # Convert to PNG
+        png_path = self._convert_to_png(dest_path)
 
         return DiagramInfo(
             diagram_type=diagram_type,
             title=title,
             mermaid_code=mermaid_code,
-            output_path=dest_path,
+            output_path=png_path or dest_path,
         )

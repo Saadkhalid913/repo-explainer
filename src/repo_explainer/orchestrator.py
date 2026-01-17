@@ -384,8 +384,11 @@ class Orchestrator:
         for component in components:
             doc_gen.generate_component_doc(component)
 
-        # Generate dependencies doc
-        doc_gen.generate_dependencies_doc(components)
+        # Generate dependencies doc - collect all external deps from components
+        all_external_deps: set[str] = set()
+        for comp in components:
+            all_external_deps.update(comp.external_dependencies)
+        doc_gen.generate_dependencies_doc(components, list(sorted(all_external_deps)))
 
         # Generate patterns doc
         doc_gen.generate_patterns_doc([])
