@@ -23,6 +23,8 @@ class DocComposer:
             output_dir: Directory containing OpenCode artifacts
         """
         self.output_dir = output_dir
+        self.src_dir = output_dir / "src"
+        self.raw_dir = output_dir / "src" / "raw"
         self.diagrams_dir = output_dir / "diagrams"
 
     def compose(
@@ -90,8 +92,8 @@ class DocComposer:
         """
         diagram_files = {}
 
-        # Find all .mermaid files in output directory
-        mermaid_files = list(self.output_dir.glob("*.mermaid"))
+        # Find all .mermaid files in src/raw/ directory
+        mermaid_files = list(self.raw_dir.glob("*.mermaid"))
 
         if not mermaid_files:
             console.print("[dim]  No Mermaid diagrams to render[/dim]")
@@ -105,54 +107,64 @@ class DocComposer:
         for mermaid_file in mermaid_files:
             svg_file = self.diagrams_dir / f"{mermaid_file.stem}.svg"
 
-            try:
-                # Use Mermaid CLI (mmdc) to render
-                result = subprocess.run(
-                    ["mmdc", "-i", str(mermaid_file), "-o", str(svg_file)],
-                    capture_output=True,
-                    text=True,
-                    timeout=30,
-                )
+            # Retry loop: try rendering up to 3 times with auto-fix
+            max_retries = 2
+            rendered = False
 
-                if result.returncode == 0:
-                    diagram_files[mermaid_file.stem] = svg_file
-                    success_count += 1
-                    console.print(f"[dim]    ✓ Rendered: {mermaid_file.name} → {svg_file.name}[/dim]")
-                else:
-                    # Rendering failed, but still track the .mermaid source
-                    diagram_files[mermaid_file.stem] = mermaid_file
-                    failed_count += 1
-
-                    # Show simplified error message
-                    error_lines = result.stderr.split('\n')
-                    error_summary = error_lines[0] if error_lines else "Unknown error"
-                    console.print(
-                        f"[yellow]    ⚠ Syntax error in {mermaid_file.name}: {error_summary}[/yellow]"
-                    )
-                    console.print(
-                        f"[dim]      Source available at {mermaid_file.name}[/dim]"
+            for attempt in range(max_retries + 1):
+                try:
+                    # Use Mermaid CLI (mmdc) to render
+                    result = subprocess.run(
+                        ["mmdc", "-i", str(mermaid_file), "-o", str(svg_file)],
+                        capture_output=True,
+                        text=True,
+                        timeout=30,
                     )
 
-            except FileNotFoundError:
-                console.print(
-                    "[yellow]  ⚠ Mermaid CLI (mmdc) not found. Install with: npm install -g @mermaid-js/mermaid-cli[/yellow]"
-                )
-                # Track all remaining mermaid files as failed
-                for remaining_file in mermaid_files:
-                    diagram_files[remaining_file.stem] = remaining_file
-                failed_count = len(mermaid_files)
-                break
-            except subprocess.TimeoutExpired:
-                # Track the source file even if timeout
+                    if result.returncode == 0:
+                        diagram_files[mermaid_file.stem] = svg_file
+                        success_count += 1
+                        if attempt > 0:
+                            console.print(f"[dim]    ✓ Rendered: {mermaid_file.name} → {svg_file.name} (after {attempt} fix(es))[/dim]")
+                        else:
+                            console.print(f"[dim]    ✓ Rendered: {mermaid_file.name} → {svg_file.name}[/dim]")
+                        rendered = True
+                        break
+                    else:
+                        # Rendering failed - try to fix if we have retries left
+                        if attempt < max_retries:
+                            error_msg = result.stderr
+                            console.print(f"[yellow]    ⚠ Syntax error in {mermaid_file.name}, attempting auto-fix (attempt {attempt + 1}/{max_retries})...[/yellow]")
+
+                            if self._fix_mermaid_syntax(mermaid_file, error_msg):
+                                continue  # Retry rendering
+                            else:
+                                console.print(f"[yellow]      Auto-fix failed, skipping retries[/yellow]")
+                                break
+                        else:
+                            # Out of retries
+                            break
+
+                except FileNotFoundError:
+                    console.print(
+                        "[yellow]  ⚠ Mermaid CLI (mmdc) not found. Install with: npm install -g @mermaid-js/mermaid-cli[/yellow]"
+                    )
+                    # Track all remaining mermaid files as failed
+                    for remaining_file in mermaid_files:
+                        diagram_files[remaining_file.stem] = remaining_file
+                    failed_count = len(mermaid_files)
+                    return diagram_files  # Exit early if mmdc not found
+                except subprocess.TimeoutExpired:
+                    console.print(f"[yellow]    ⚠ Timeout rendering {mermaid_file.name}[/yellow]")
+                    break
+                except Exception as e:
+                    console.print(f"[yellow]    ⚠ Error rendering {mermaid_file.name}: {e}[/yellow]")
+                    break
+
+            if not rendered:
+                # All retries failed, track the .mermaid source
                 diagram_files[mermaid_file.stem] = mermaid_file
                 failed_count += 1
-                console.print(f"[yellow]    ⚠ Timeout rendering {mermaid_file.name}[/yellow]")
-                console.print(f"[dim]      Source available at {mermaid_file.name}[/dim]")
-            except Exception as e:
-                # Track the source file even on exception
-                diagram_files[mermaid_file.stem] = mermaid_file
-                failed_count += 1
-                console.print(f"[yellow]    ⚠ Error rendering {mermaid_file.name}: {e}[/yellow]")
                 console.print(f"[dim]      Source available at {mermaid_file.name}[/dim]")
 
         # Print summary
@@ -163,6 +175,72 @@ class DocComposer:
                 console.print(f"[dim]  ⚠ {failed_count} diagram(s) failed (source files available)[/dim]")
 
         return diagram_files
+
+    def _fix_mermaid_syntax(self, mermaid_file: Path, error_msg: str) -> bool:
+        """
+        Attempt to fix Mermaid syntax errors using OpenCode.
+
+        Args:
+            mermaid_file: Path to the .mermaid file with syntax errors
+            error_msg: Error message from the Mermaid CLI
+
+        Returns:
+            True if fixed successfully, False otherwise
+        """
+        try:
+            # Read the current content
+            content = mermaid_file.read_text()
+
+            # Create a prompt for OpenCode to fix the syntax
+            prompt = f"""Fix the Mermaid syntax errors in this diagram.
+
+Error message:
+{error_msg}
+
+Mermaid source:
+```mermaid
+{content}
+```
+
+Please output ONLY the corrected Mermaid code without any explanation or markdown code blocks.
+Just output the raw Mermaid syntax starting with the diagram type (e.g., 'graph', 'sequenceDiagram', 'classDiagram', etc.)."""
+
+            # Call OpenCode to fix the syntax
+            result = subprocess.run(
+                ["opencode", "run", prompt, "--format", "json"],
+                capture_output=True,
+                text=True,
+                timeout=60,
+                cwd=str(self.raw_dir),
+            )
+
+            if result.returncode != 0:
+                return False
+
+            # Parse the output to extract the fixed Mermaid code
+            fixed_content = None
+            for line in result.stdout.strip().split('\n'):
+                try:
+                    event = json.loads(line)
+                    if event.get("type") == "text":
+                        text_content = event.get("part", {}).get("text", "")
+                        if text_content and any(text_content.strip().startswith(t) for t in ["graph", "sequenceDiagram", "classDiagram", "flowchart", "erDiagram", "journey", "gantt", "pie", "gitGraph"]):
+                            fixed_content = text_content.strip()
+                            break
+                except json.JSONDecodeError:
+                    continue
+
+            if not fixed_content:
+                return False
+
+            # Write the fixed content back to the file
+            mermaid_file.write_text(fixed_content)
+            console.print(f"[dim]    ✓ Fixed syntax in {mermaid_file.name}[/dim]")
+            return True
+
+        except Exception as e:
+            console.print(f"[dim]    Failed to auto-fix {mermaid_file.name}: {e}[/dim]")
+            return False
 
     def _generate_subpages(self, diagram_files: dict[str, Path]) -> dict[str, Path]:
         """
@@ -189,7 +267,7 @@ class DocComposer:
                 subpages["dataflow"] = dataflow_file
 
         # Generate tech-stack.md
-        if (self.output_dir / "tech-stack.txt").exists():
+        if (self.raw_dir / "tech-stack.txt").exists():
             tech_stack_file = self._generate_tech_stack_page()
             if tech_stack_file:
                 subpages["tech-stack"] = tech_stack_file
@@ -197,13 +275,13 @@ class DocComposer:
         return subpages
 
     def _generate_components_page(self, diagram_files: dict[str, Path]) -> Path | None:
-        """Generate components.md subpage."""
-        components_file = self.output_dir / "components.md"
+        """Generate components/overview.md subpage."""
+        components_file = self.output_dir / "components" / "overview.md"
 
         content = "# Components\n\n"
 
         # Add architecture overview if available
-        arch_file = self.output_dir / "architecture.md"
+        arch_file = self.raw_dir / "architecture.md"
         if arch_file.exists():
             arch_content = arch_file.read_text()
 
@@ -219,7 +297,8 @@ class DocComposer:
         # Embed component diagram
         if "components" in diagram_files:
             diagram_path = diagram_files["components"]
-            relative_path = diagram_path.relative_to(self.output_dir)
+            # Calculate relative path from components/ to diagrams/
+            relative_path = "../" + str(diagram_path.relative_to(self.output_dir))
 
             content += "## Component Diagram\n\n"
 
@@ -229,13 +308,13 @@ class DocComposer:
             elif diagram_path.suffix == ".mermaid":
                 # Rendering failed, show helpful message
                 content += "> ⚠️ **Note:** Diagram rendering failed due to Mermaid syntax errors.\n"
-                content += "> The source diagram is available below. You can:\n"
-                content += "> - Fix the syntax and render manually with `mmdc -i components.mermaid -o components.svg`\n"
+                content += "> The source diagram is available in `src/raw/components.mermaid`. You can:\n"
+                content += "> - Fix the syntax and render manually with `mmdc -i src/raw/components.mermaid -o diagrams/components.svg`\n"
                 content += "> - View the source in a Mermaid-compatible editor\n"
                 content += "> - Check the [Mermaid documentation](https://mermaid.js.org/) for syntax help\n\n"
 
             # Include Mermaid source
-            mermaid_source = self.output_dir / "components.mermaid"
+            mermaid_source = self.raw_dir / "components.mermaid"
             if mermaid_source.exists():
                 content += "<details>\n<summary>View Mermaid Source</summary>\n\n"
                 content += "```mermaid\n"
@@ -243,12 +322,12 @@ class DocComposer:
                 content += "\n```\n</details>\n\n"
 
         components_file.write_text(content)
-        console.print(f"[dim]  Created: components.md[/dim]")
+        console.print(f"[dim]  Created: components/overview.md[/dim]")
         return components_file
 
     def _generate_dataflow_page(self, diagram_files: dict[str, Path]) -> Path | None:
-        """Generate dataflow.md subpage."""
-        dataflow_file = self.output_dir / "dataflow.md"
+        """Generate dataflow/overview.md subpage."""
+        dataflow_file = self.output_dir / "dataflow" / "overview.md"
 
         content = "# Data Flow\n\n"
         content += "This page visualizes how data flows through the system.\n\n"
@@ -256,7 +335,8 @@ class DocComposer:
         # Embed dataflow diagram
         if "dataflow" in diagram_files:
             diagram_path = diagram_files["dataflow"]
-            relative_path = diagram_path.relative_to(self.output_dir)
+            # Calculate relative path from dataflow/ to diagrams/
+            relative_path = "../" + str(diagram_path.relative_to(self.output_dir))
 
             content += "## Data Flow Diagram\n\n"
 
@@ -266,13 +346,13 @@ class DocComposer:
             elif diagram_path.suffix == ".mermaid":
                 # Rendering failed, show helpful message
                 content += "> ⚠️ **Note:** Diagram rendering failed due to Mermaid syntax errors.\n"
-                content += "> The source diagram is available below. You can:\n"
-                content += "> - Fix the syntax and render manually with `mmdc -i dataflow.mermaid -o dataflow.svg`\n"
+                content += "> The source diagram is available in `src/raw/dataflow.mermaid`. You can:\n"
+                content += "> - Fix the syntax and render manually with `mmdc -i src/raw/dataflow.mermaid -o diagrams/dataflow.svg`\n"
                 content += "> - View the source in a Mermaid-compatible editor\n"
                 content += "> - Check the [Mermaid documentation](https://mermaid.js.org/) for syntax help\n\n"
 
             # Include Mermaid source
-            mermaid_source = self.output_dir / "dataflow.mermaid"
+            mermaid_source = self.raw_dir / "dataflow.mermaid"
             if mermaid_source.exists():
                 content += "<details>\n<summary>View Mermaid Source</summary>\n\n"
                 content += "```mermaid\n"
@@ -280,7 +360,7 @@ class DocComposer:
                 content += "\n```\n</details>\n\n"
 
         # Extract data flow section from architecture.md if available
-        arch_file = self.output_dir / "architecture.md"
+        arch_file = self.raw_dir / "architecture.md"
         if arch_file.exists():
             arch_content = arch_file.read_text()
             dataflow_section = self._extract_section(arch_content, "Data Flow")
@@ -289,16 +369,16 @@ class DocComposer:
                 content += dataflow_section + "\n"
 
         dataflow_file.write_text(content)
-        console.print(f"[dim]  Created: dataflow.md[/dim]")
+        console.print(f"[dim]  Created: dataflow/overview.md[/dim]")
         return dataflow_file
 
     def _generate_tech_stack_page(self) -> Path | None:
-        """Generate tech-stack.md subpage from tech-stack.txt."""
-        tech_stack_txt = self.output_dir / "tech-stack.txt"
+        """Generate tech-stack/overview.md subpage from tech-stack.txt."""
+        tech_stack_txt = self.raw_dir / "tech-stack.txt"
         if not tech_stack_txt.exists():
             return None
 
-        tech_stack_file = self.output_dir / "tech-stack.md"
+        tech_stack_file = self.output_dir / "tech-stack" / "overview.md"
 
         content = "# Technology Stack\n\n"
 
@@ -320,7 +400,7 @@ class DocComposer:
             content += raw_content
 
         tech_stack_file.write_text(content)
-        console.print(f"[dim]  Created: tech-stack.md[/dim]")
+        console.print(f"[dim]  Created: tech-stack/overview.md[/dim]")
         return tech_stack_file
 
     def _generate_index(
@@ -370,16 +450,16 @@ class DocComposer:
         content += "## Quick Navigation\n\n"
 
         if "components" in subpages:
-            content += "- 📦 [Components](components.md) - System components and architecture\n"
+            content += "- 📦 [Components](components/overview.md) - System components and architecture\n"
 
         if "dataflow" in subpages:
-            content += "- 🔄 [Data Flow](dataflow.md) - How data moves through the system\n"
+            content += "- 🔄 [Data Flow](dataflow/overview.md) - How data moves through the system\n"
 
         if "tech-stack" in subpages:
-            content += "- 🛠️ [Technology Stack](tech-stack.md) - Technologies and frameworks used\n"
+            content += "- 🛠️ [Technology Stack](tech-stack/overview.md) - Technologies and frameworks used\n"
 
-        if (self.output_dir / "architecture.md").exists():
-            content += "- 📐 [Architecture Details](architecture.md) - Full architecture analysis\n"
+        if (self.raw_dir / "architecture.md").exists():
+            content += "- 📐 [Architecture Details](src/raw/architecture.md) - Full architecture analysis\n"
 
         content += "\n"
 
@@ -396,8 +476,8 @@ class DocComposer:
                     content += f"![Component Diagram]({relative_path})\n\n"
                 elif diagram_path.suffix == ".mermaid":
                     content += "> ⚠️ Diagram rendering failed (Mermaid syntax errors). "
-                    content += "View source in [components.md](components.md)\n\n"
-                content += "[View detailed component documentation →](components.md)\n\n"
+                    content += "View source in [components/overview.md](components/overview.md)\n\n"
+                content += "[View detailed component documentation →](components/overview.md)\n\n"
 
             # Dataflow diagram
             if "dataflow" in diagram_files:
@@ -408,22 +488,22 @@ class DocComposer:
                     content += f"![Data Flow Diagram]({relative_path})\n\n"
                 elif diagram_path.suffix == ".mermaid":
                     content += "> ⚠️ Diagram rendering failed (Mermaid syntax errors). "
-                    content += "View source in [dataflow.md](dataflow.md)\n\n"
-                content += "[View detailed data flow documentation →](dataflow.md)\n\n"
+                    content += "View source in [dataflow/overview.md](dataflow/overview.md)\n\n"
+                content += "[View detailed data flow documentation →](dataflow/overview.md)\n\n"
 
         # Key metrics section
         content += "## Analysis Artifacts\n\n"
         content += "This analysis generated the following artifacts:\n\n"
 
         artifacts_list = []
-        if (self.output_dir / "architecture.md").exists():
-            artifacts_list.append("- `architecture.md` - Detailed architecture analysis")
-        if (self.output_dir / "components.mermaid").exists():
-            artifacts_list.append("- `components.mermaid` - Component diagram source")
-        if (self.output_dir / "dataflow.mermaid").exists():
-            artifacts_list.append("- `dataflow.mermaid` - Data flow diagram source")
-        if (self.output_dir / "tech-stack.txt").exists():
-            artifacts_list.append("- `tech-stack.txt` - Raw technology stack")
+        if (self.raw_dir / "architecture.md").exists():
+            artifacts_list.append("- `src/raw/architecture.md` - Detailed architecture analysis")
+        if (self.raw_dir / "components.mermaid").exists():
+            artifacts_list.append("- `src/raw/components.mermaid` - Component diagram source")
+        if (self.raw_dir / "dataflow.mermaid").exists():
+            artifacts_list.append("- `src/raw/dataflow.mermaid` - Data flow diagram source")
+        if (self.raw_dir / "tech-stack.txt").exists():
+            artifacts_list.append("- `src/raw/tech-stack.txt` - Raw technology stack")
 
         for artifact in artifacts_list:
             content += artifact + "\n"

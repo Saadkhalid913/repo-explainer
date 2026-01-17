@@ -246,7 +246,9 @@ def analyze(
                 console.print(f"  - [cyan]index.md[/cyan] (Start here!)")
             for doc_type, file_path in coherent_docs.items():
                 if doc_type != "index":
-                    console.print(f"  - [cyan]{file_path.name}[/cyan]")
+                    # Show relative path from output directory
+                    rel_path = file_path.relative_to(settings.output_dir)
+                    console.print(f"  - [cyan]{rel_path}[/cyan]")
             console.print()
 
         # Display technical artifacts

@@ -37,7 +37,15 @@ class OutputManager:
     def ensure_directories(self) -> None:
         """Create output directory structure if it doesn't exist."""
         self.output_dir.mkdir(parents=True, exist_ok=True)
-        (self.output_dir / "logs").mkdir(exist_ok=True)
+
+        # Create organized directory structure
+        (self.output_dir / "src" / "raw").mkdir(parents=True, exist_ok=True)
+        (self.output_dir / "src" / "logs").mkdir(parents=True, exist_ok=True)
+        (self.output_dir / "diagrams").mkdir(exist_ok=True)
+        (self.output_dir / "architecture").mkdir(exist_ok=True)
+        (self.output_dir / "components").mkdir(exist_ok=True)
+        (self.output_dir / "dataflow").mkdir(exist_ok=True)
+        (self.output_dir / "tech-stack").mkdir(exist_ok=True)
 
     def write_analysis_result(
         self,
@@ -65,12 +73,12 @@ class OutputManager:
         opencode_artifacts = self._copy_opencode_artifacts(repo_path)
         output_files.update(opencode_artifacts)
 
-        # Write raw output
-        raw_output_file = self.output_dir / "logs" / f"analysis_{timestamp}.txt"
+        # Write raw output to src/logs/
+        raw_output_file = self.output_dir / "src" / "logs" / f"analysis_{timestamp}.txt"
         raw_output_file.write_text(result.output)
         output_files["raw_output"] = raw_output_file
 
-        # Write metadata
+        # Write metadata to src/logs/
         metadata = {
             "timestamp": timestamp,
             "repository": str(repo_path),
@@ -82,12 +90,12 @@ class OutputManager:
             "opencode_artifacts": [str(p) for p in opencode_artifacts.values()],
         }
 
-        metadata_file = self.output_dir / "logs" / f"metadata_{timestamp}.json"
+        metadata_file = self.output_dir / "src" / "logs" / f"metadata_{timestamp}.json"
         metadata_file.write_text(json.dumps(metadata, indent=2))
         output_files["metadata"] = metadata_file
 
-        # Write summary
-        summary_file = self.output_dir / "ANALYSIS_SUMMARY.md"
+        # Write summary to src/
+        summary_file = self.output_dir / "src" / "ANALYSIS_SUMMARY.md"
         summary_content = self._generate_summary(
             repo_path=repo_path,
             depth=depth,
@@ -98,9 +106,9 @@ class OutputManager:
         summary_file.write_text(summary_content)
         output_files["summary"] = summary_file
 
-        # Parse and save structured output if available
+        # Parse and save structured output to src/
         if result.success and result.output:
-            structured_file = self.output_dir / f"analysis_{depth}.json"
+            structured_file = self.output_dir / "src" / f"analysis_{depth}.json"
             self._write_structured_output(result.output, structured_file)
             output_files["structured"] = structured_file
 
@@ -132,8 +140,8 @@ class OutputManager:
         for artifact_name in OPENCODE_ARTIFACTS:
             source_file = repo_path / artifact_name
             if source_file.exists():
-                # Copy to output directory
-                dest_file = self.output_dir / artifact_name
+                # Copy to src/raw/ directory
+                dest_file = self.output_dir / "src" / "raw" / artifact_name
                 shutil.copy2(source_file, dest_file)
                 artifacts[artifact_name.replace(".", "_")] = dest_file
 
