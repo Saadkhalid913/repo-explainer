@@ -111,9 +111,9 @@ This document lists what each component **depends on** (its downstream dependenc
 
 ---
 
-## [Team Directory](../components/team-directory.md)
+## [Team Playbook](../components/team-playbook.md)
 
-**Location**: `ANOTHERTEST.MD`
+**Location**: `TeamPlayBook.MD`
 
 _No dependencies_
 

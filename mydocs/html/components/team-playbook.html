@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Downstream Dependencies - Repository Documentation</title>
+    <title>Team Playbook - Repository Documentation</title>
     <style>
         
         * {
@@ -348,13 +348,13 @@
                 <a href="../index.html" class="nav-item ">
                     🏠 Home
                 </a>
-                <a href="../components/overview.html" class="nav-item ">
+                <a href="../components/overview.html" class="nav-item active">
                     📦 Components
                 </a>
                 <a href="../dataflow/overview.html" class="nav-item ">
                     🔄 Data Flow
                 </a>
-                <a href="../dependencies/overview.html" class="nav-item active">
+                <a href="../dependencies/overview.html" class="nav-item ">
                     🔗 Dependencies
                 </a>
                 <a href="../api/overview.html" class="nav-item ">
@@ -373,97 +373,17 @@
         </nav>
         <main class="content">
             <article class="markdown-body">
-                <h1 id="downstream-dependencies">Downstream Dependencies</h1>
-<p>This document lists what each component <strong>depends on</strong> (its downstream dependencies).</p>
-<h2 id="cli-module"><a href="../components/cli.html">CLI Module</a></h2>
-<p><strong>Location</strong>: <code>src/repo_explainer/cli.py</code></p>
-<h3 id="internal-dependencies">Internal Dependencies</h3>
-<ul>
-<li><a href="../components/repository-loader.html"><code>Repository Loader</code></a> - <code>src/repo_explainer/repository_loader.py</code></li>
-<li><a href="../components/opencode-service.html"><code>OpenCode Service</code></a> - <code>src/repo_explainer/opencode_service.py</code></li>
-<li><a href="../components/output-manager.html"><code>Output Manager</code></a> - <code>src/repo_explainer/output_manager.py</code></li>
-<li><a href="../components/html-generator.html"><code>HTML Generator</code></a> - <code>src/repo_explainer/html_generator.py</code></li>
-<li><code>config</code></li>
-</ul>
-<h3 id="external-dependencies">External Dependencies</h3>
-<ul>
-<li><code>typer</code></li>
-<li><code>rich</code></li>
-</ul>
+                <h1 id="team-playbook">Team Playbook</h1>
+<p><strong>Type</strong>: <code>documentation</code><br />
+<strong>ID</strong>: <code>team-playbook</code><br />
+<strong>Location</strong>: <code>TeamPlayBook.MD:1-158</code>  </p>
+<h2 id="overview">Overview</h2>
+<p>Comprehensive engineering playbook covering workflows, quality standards, and communication norms.</p>
+<h2 id="dependencies">Dependencies</h2>
+<h2 id="used-by">Used By</h2>
+<p><em>No components currently depend on this component.</em></p>
 <hr />
-<h2 id="orchestrator"><a href="../components/orchestrator.html">Orchestrator</a></h2>
-<p><strong>Location</strong>: <code>src/repo_explainer/orchestrator.py</code></p>
-<h3 id="internal-dependencies_1">Internal Dependencies</h3>
-<ul>
-<li><a href="../components/repository-loader.html"><code>Repository Loader</code></a> - <code>src/repo_explainer/repository_loader.py</code></li>
-<li><code>code-analyzer</code></li>
-<li><a href="../components/opencode-runner.html"><code>OpenCode Runner</code></a> - <code>src/repo_explainer/opencode_runner.py</code></li>
-<li><code>doc-generator</code></li>
-<li><a href="../components/output-manager.html"><code>Output Manager</code></a> - <code>src/repo_explainer/output_manager.py</code></li>
-</ul>
-<h3 id="external-dependencies_1">External Dependencies</h3>
-<ul>
-<li><code>rich</code></li>
-</ul>
-<hr />
-<h2 id="opencode-runner"><a href="../components/opencode-runner.html">OpenCode Runner</a></h2>
-<p><strong>Location</strong>: <code>src/repo_explainer/opencode_runner.py</code></p>
-<h3 id="internal-dependencies_2">Internal Dependencies</h3>
-<ul>
-<li><code>config</code></li>
-<li><code>models</code></li>
-</ul>
-<h3 id="external-dependencies_2">External Dependencies</h3>
-<ul>
-<li><code>subprocess</code></li>
-<li><code>rich</code></li>
-</ul>
-<hr />
-<h2 id="repository-loader"><a href="../components/repository-loader.html">Repository Loader</a></h2>
-<p><strong>Location</strong>: <code>src/repo_explainer/repository_loader.py</code></p>
-<h3 id="external-dependencies_3">External Dependencies</h3>
-<ul>
-<li><code>GitPython</code></li>
-</ul>
-<hr />
-<h2 id="opencode-service"><a href="../components/opencode-service.html">OpenCode Service</a></h2>
-<p><strong>Location</strong>: <code>src/repo_explainer/opencode_service.py</code></p>
-<h3 id="internal-dependencies_3">Internal Dependencies</h3>
-<ul>
-<li><code>config</code></li>
-<li><code>prompts</code></li>
-</ul>
-<hr />
-<h2 id="output-manager"><a href="../components/output-manager.html">Output Manager</a></h2>
-<p><strong>Location</strong>: <code>src/repo_explainer/output_manager.py</code></p>
-<h3 id="internal-dependencies_4">Internal Dependencies</h3>
-<ul>
-<li><a href="../components/doc-composer.html"><code>Document Composer</code></a> - <code>src/repo_explainer/doc_composer.py</code></li>
-</ul>
-<hr />
-<h2 id="document-composer"><a href="../components/doc-composer.html">Document Composer</a></h2>
-<p><strong>Location</strong>: <code>src/repo_explainer/doc_composer.py</code></p>
-<h3 id="internal-dependencies_5">Internal Dependencies</h3>
-<ul>
-<li><a href="../components/opencode-service.html"><code>OpenCode Service</code></a> - <code>src/repo_explainer/opencode_service.py</code></li>
-</ul>
-<h3 id="external-dependencies_4">External Dependencies</h3>
-<ul>
-<li><code>mermaid-cli</code></li>
-</ul>
-<hr />
-<h2 id="html-generator"><a href="../components/html-generator.html">HTML Generator</a></h2>
-<p><strong>Location</strong>: <code>src/repo_explainer/html_generator.py</code></p>
-<h3 id="external-dependencies_5">External Dependencies</h3>
-<ul>
-<li><code>markdown</code></li>
-<li><code>rich</code></li>
-</ul>
-<hr />
-<h2 id="team-playbook"><a href="../components/team-playbook.html">Team Playbook</a></h2>
-<p><strong>Location</strong>: <code>TeamPlayBook.MD</code></p>
-<p><em>No dependencies</em></p>
-<hr />
+<p><em>Generated from component analysis</em></p>
             </article>
         </main>
     </div>

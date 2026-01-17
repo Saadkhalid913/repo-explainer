@@ -497,11 +497,19 @@ def update(
         console.print(f"  [dim]... and {len(changed_files) - 10} more[/dim]")
 
     # Get recent commits for context (from the target branch)
-    recent_commits = loader.get_recent_commits(repo_path, count=min(commits, 5), branch=branch)
+    # Only get commits since the last analysis if we have a since_commit marker
+    recent_commits = loader.get_recent_commits(
+        repo_path, 
+        count=min(commits, 10),  # Get more commits but filter by since_commit
+        branch=branch,
+        since_commit=since_commit  # Only get new commits since last analysis
+    )
     if recent_commits:
-        console.print(f"\n[bold]Recent commits on {branch}:[/bold]")
-        for commit in recent_commits[:3]:
+        console.print(f"\n[bold]New commits on {branch} since last analysis:[/bold]")
+        for commit in recent_commits[:5]:
             console.print(f"  [dim]{commit.short_sha}[/dim] {commit.message[:50]}")
+    else:
+        console.print(f"\n[dim]No new commits since last analysis[/dim]")
 
     # Generate AI summaries for commits
     console.print("\n[bold]Generating commit summaries...[/bold]")

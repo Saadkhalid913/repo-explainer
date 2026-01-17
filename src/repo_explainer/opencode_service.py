@@ -1,6 +1,7 @@
 """OpenCode CLI integration service."""
 
 import json
+import re
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -34,6 +35,32 @@ def parse_opencode_event(line: str) -> dict[str, Any] | None:
         return json.loads(line)
     except json.JSONDecodeError:
         return None
+
+
+def extract_text_from_opencode_output(output: str) -> str:
+    """
+    Extract the actual text content from OpenCode streaming JSON output.
+
+    OpenCode returns newline-delimited JSON events. Text responses are in
+    events with type="text" and the content is in part.text.
+
+    Args:
+        output: Raw output from OpenCode (newline-delimited JSON)
+
+    Returns:
+        Concatenated text content from all text events
+    """
+    text_parts = []
+    for line in output.strip().split("\n"):
+        if not line.strip():
+            continue
+        event = parse_opencode_event(line.strip())
+        if event and event.get("type") == "text":
+            part = event.get("part", {})
+            text = part.get("text", "")
+            if text:
+                text_parts.append(text)
+    return "".join(text_parts)
 
 
 @dataclass
@@ -295,14 +322,24 @@ class OpenCodeService:
 
         if result.success:
             try:
-                return json.loads(result.output)
-            except json.JSONDecodeError:
+                # Extract text content from streaming JSON events
+                text_content = extract_text_from_opencode_output(result.output)
+                
+                # The AI response should contain a JSON block - extract it
+                # Look for JSON object in the text (handles markdown code blocks too)
+                json_match = re.search(r'\{[^{}]*"summary"[^{}]*\}', text_content, re.DOTALL)
+                if json_match:
+                    return json.loads(json_match.group())
+                
+                # Try parsing the whole text as JSON
+                return json.loads(text_content)
+            except (json.JSONDecodeError, AttributeError):
                 return {
                     "summary": "Summary generation failed - invalid JSON response",
                     "category": "unknown",
                     "impact_level": "unknown",
                     "breaking_changes": False,
-                    "details": result.output
+                    "details": text_content if 'text_content' in dir() else result.output
                 }
         else:
             return {

@@ -408,10 +408,10 @@
 <p><strong>Type</strong>: <code>module</code><br />
 <strong>Location</strong>: <code>src/repo_explainer/html_generator.py</code>  </p>
 <p>Converts markdown documentation to HTML with navigation, update banners, and a history page.</p>
-<h3 id="team-directory"><a href="team-directory.html">Team Directory</a></h3>
+<h3 id="team-playbook"><a href="team-playbook.html">Team Playbook</a></h3>
 <p><strong>Type</strong>: <code>documentation</code><br />
-<strong>Location</strong>: <code>ANOTHERTEST.MD</code>  </p>
-<p>Team contact information and engineer directory for support and collaboration.</p>
+<strong>Location</strong>: <code>TeamPlayBook.MD</code>  </p>
+<p>Comprehensive engineering playbook covering workflows, quality standards, and communication norms.</p>
 <hr />
 <h2 id="architecture-overview">Architecture Overview</h2>
 <h2 id="architecture-overview_1">Architecture Overview</h2>
@@ -448,7 +448,7 @@
 <span class="w">    </span><span class="n">end</span>
 
 <span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="s2">&quot;Support &amp; Resources&quot;</span>
-<span class="w">        </span><span class="n">TD</span><span class="p">[</span><span class="n">Team</span><span class="w"> </span><span class="n">Directory</span><span class="o">&lt;</span><span class="n">br</span><span class="o">/&gt;</span><span class="n">ANOTHERTEST</span><span class="o">.</span><span class="n">MD</span><span class="p">]</span>
+<span class="w">        </span><span class="n">TPB</span><span class="p">[</span><span class="n">Team</span><span class="w"> </span><span class="n">Playbook</span><span class="o">&lt;</span><span class="n">br</span><span class="o">/&gt;</span><span class="n">TeamPlayBook</span><span class="o">.</span><span class="n">MD</span><span class="p">]</span>
 <span class="w">    </span><span class="n">end</span>
 
 <span class="w">    </span><span class="n">CLI</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">RL</span>
@@ -557,16 +557,17 @@
 <li>Capture metadata and raw execution logs.</li>
 <li>Orchestrate the documentation composition process.</li>
 </ul>
-<h3 id="component-team-directory">Component: Team Directory</h3>
+<h3 id="component-team-playbook">Component: Team Playbook</h3>
 <ul>
-<li><strong>ID</strong>: <code>team-directory</code></li>
+<li><strong>ID</strong>: <code>team-playbook</code></li>
 <li><strong>Type</strong>: <code>documentation</code></li>
-<li><strong>Location</strong>: <code>ANOTHERTEST.MD</code></li>
-<li><strong>Purpose</strong>: Provides team contact information and engineer directory for support and collaboration.</li>
+<li><strong>Location</strong>: <code>TeamPlayBook.MD</code></li>
+<li><strong>Purpose</strong>: Comprehensive engineering playbook covering workflows, quality standards, and communication norms.</li>
 <li><strong>Responsibilities</strong>:</li>
-<li>Maintain up-to-date contact info for engineering teams.</li>
-<li>Provide emergency contact details and response time expectations.</li>
-<li>Guide users on how to reach different engineering domains.</li>
+<li>Define work flows, branching strategies, and PR expectations.</li>
+<li>Establish testing guidelines and deployment protocols.</li>
+<li>Document decision-making processes and incident handling.</li>
+<li>Provide communication norms and resource locations.</li>
 </ul>
 <h2 id="data-flow">Data Flow</h2>
 <ol>
@@ -613,7 +614,7 @@
 <span class="w">    </span><span class="n">end</span>
 
 <span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="s2">&quot;Support &amp; Resources&quot;</span>
-<span class="w">        </span><span class="n">TD</span><span class="p">[</span><span class="n">Team</span><span class="w"> </span><span class="n">Directory</span><span class="o">&lt;</span><span class="n">br</span><span class="o">/&gt;</span><span class="n">ANOTHERTEST</span><span class="o">.</span><span class="n">MD</span><span class="p">]</span>
+<span class="w">        </span><span class="n">TPB</span><span class="p">[</span><span class="n">Team</span><span class="w"> </span><span class="n">Playbook</span><span class="o">&lt;</span><span class="n">br</span><span class="o">/&gt;</span><span class="n">TeamPlayBook</span><span class="o">.</span><span class="n">MD</span><span class="p">]</span>
 <span class="w">    </span><span class="n">end</span>
 
 <span class="w">    </span><span class="n">CLI</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">RL</span>

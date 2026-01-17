@@ -211,12 +211,12 @@
       }
     },
     {
-      "component_id": "team-directory",
-      "name": "Team Directory",
+      "component_id": "team-playbook",
+      "name": "Team Playbook",
       "type": "documentation",
-      "file_path": "ANOTHERTEST.MD",
-      "line_range": {"start": 1, "end": 132},
-      "description": "Team contact information and engineer directory for support and collaboration.",
+      "file_path": "TeamPlayBook.MD",
+      "line_range": {"start": 1, "end": 158},
+      "description": "Comprehensive engineering playbook covering workflows, quality standards, and communication norms.",
       "key_functions": [],
       "dependencies": {
         "internal": [],

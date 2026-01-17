@@ -2,7 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
-## [Unreleased] - 2026-01-17
+## [Unreleased] - 2026-01-17 (Update 2)
+
+### Added
+- **Team Playbook**: Introduced `TeamPlayBook.MD` as the primary engineering guide, replacing the `ANOTHERTEST.MD` team directory. This document defines development workflows, quality standards, and communication protocols.
+
+### Modified
+- **Architecture Documentation**: Updated `architecture.md`, `components.json`, and `components.mermaid` to integrate the new `team-playbook` component and remove references to the deprecated `team-directory`.
+
+### Affected Components
+- `team-playbook` (`TeamPlayBook.MD`) - **NEW**
+- `architecture.md`
+- `components.json`
+- `components.mermaid`
+
+## [Unreleased] - 2026-01-17 (Update 1)
 
 ### Added
 - **Team Directory**: Added `ANOTHERTEST.MD` providing comprehensive contact information and directory for engineering teams (Backend, Frontend, DevOps, etc.).

@@ -35,7 +35,7 @@ graph TD
     end
 
     subgraph "Support & Resources"
-        TD[Team Directory<br/>ANOTHERTEST.MD]
+        TPB[Team Playbook<br/>TeamPlayBook.MD]
     end
 
     CLI --> RL
@@ -137,15 +137,16 @@ graph TD
   - Capture metadata and raw execution logs.
   - Orchestrate the documentation composition process.
 
-### Component: Team Directory
-- **ID**: `team-directory`
+### Component: Team Playbook
+- **ID**: `team-playbook`
 - **Type**: `documentation`
-- **Location**: `ANOTHERTEST.MD`
-- **Purpose**: Provides team contact information and engineer directory for support and collaboration.
+- **Location**: `TeamPlayBook.MD`
+- **Purpose**: Comprehensive engineering playbook covering workflows, quality standards, and communication norms.
 - **Responsibilities**:
-  - Maintain up-to-date contact info for engineering teams.
-  - Provide emergency contact details and response time expectations.
-  - Guide users on how to reach different engineering domains.
+  - Define work flows, branching strategies, and PR expectations.
+  - Establish testing guidelines and deployment protocols.
+  - Document decision-making processes and incident handling.
+  - Provide communication norms and resource locations.
 
 ## Data Flow
 1. **Input**: User provides a repository path or URL to the `cli`.

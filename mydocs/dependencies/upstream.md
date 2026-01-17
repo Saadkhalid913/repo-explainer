@@ -81,9 +81,9 @@ _No components depend on this component_
 
 ---
 
-## [Team Directory](../components/team-directory.md)
+## [Team Playbook](../components/team-playbook.md)
 
-**Location**: `ANOTHERTEST.MD`
+**Location**: `TeamPlayBook.MD`
 
 _No components depend on this component_
 

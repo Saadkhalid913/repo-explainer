@@ -250,6 +250,7 @@ class RepositoryLoader:
         repo_path: Path,
         count: int = 10,
         branch: str = "main",
+        since_commit: str | None = None,
     ) -> list[CommitInfo]:
         """
         Get recent commits from a specific branch (defaults to main).
@@ -258,6 +259,7 @@ class RepositoryLoader:
             repo_path: Path to the git repository
             count: Number of recent commits to retrieve
             branch: Branch to get commits from (default: "main")
+            since_commit: Only get commits after this SHA (exclusive)
 
         Returns:
             List of CommitInfo objects with commit details
@@ -282,6 +284,10 @@ class RepositoryLoader:
                 target_ref = repo.head.commit
 
             for commit in repo.iter_commits(target_ref, max_count=count):
+                # Stop if we reach the since_commit
+                if since_commit and commit.hexsha.startswith(since_commit):
+                    break
+                
                 # Get list of files changed in this commit
                 files = list(commit.stats.files.keys())
                 
