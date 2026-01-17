@@ -267,6 +267,54 @@ class OpenCodeService:
         )
         return self.run_command(prompt, event_callback=event_callback)
 
+    def analyze_commit_changes(
+        self,
+        commit_info: dict,
+        diff_content: str = "",
+        event_callback: Callable[[dict], None] | None = None,
+    ) -> dict:
+        """
+        Generate an AI summary of what changed in a commit.
+
+        Args:
+            commit_info: Dictionary with commit information
+            diff_content: Git diff content for the commit
+            event_callback: Optional callback for OpenCode events
+
+        Returns:
+            Dictionary with commit summary information
+        """
+        from .prompts import get_commit_summary_prompt
+
+        prompt = get_commit_summary_prompt(commit_info, diff_content)
+
+        result = self.run_command(
+            prompt=prompt,
+            format_type="json",
+            model=self.settings.opencode_model,
+            event_callback=event_callback
+        )
+
+        if result.success:
+            try:
+                return json.loads(result.output)
+            except json.JSONDecodeError:
+                return {
+                    "summary": "Summary generation failed - invalid JSON response",
+                    "category": "unknown",
+                    "impact_level": "unknown",
+                    "breaking_changes": False,
+                    "details": result.output
+                }
+        else:
+            return {
+                "summary": f"Commit: {commit_info.get('message', 'Unknown')}",
+                "category": "unknown",
+                "impact_level": "unknown",
+                "breaking_changes": False,
+                "details": result.error or "Failed to generate summary"
+            }
+
     def check_available(self) -> bool:
         """Check if OpenCode CLI is available."""
         try:

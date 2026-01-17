@@ -133,6 +133,16 @@ graph TD
   - Capture metadata and raw execution logs.
   - Orchestrate the documentation composition process.
 
+### Component: Team Directory
+- **ID**: `team-directory`
+- **Type**: `documentation`
+- **Location**: `ANOTHERTEST.MD`
+- **Purpose**: Provides team contact information and engineer directory for support and collaboration.
+- **Responsibilities**:
+  - Maintain up-to-date contact info for engineering teams.
+  - Provide emergency contact details and response time expectations.
+  - Guide users on how to reach different engineering domains.
+
 ## Data Flow
 1. **Input**: User provides a repository path or URL to the `cli`.
 2. **Loading**: `RepositoryLoader` resolves the path or clones the repo.

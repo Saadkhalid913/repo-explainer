@@ -4,7 +4,7 @@ This section provides a comprehensive view of all dependencies in the repository
 
 ## Summary
 
-- **Total Components**: 8
+- **Total Components**: 9
 - **Internal Dependencies**: 16 connections
 - **External Packages**: 6 unique packages
 

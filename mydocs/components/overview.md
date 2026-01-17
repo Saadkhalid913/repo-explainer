@@ -1,6 +1,6 @@
 # Components Overview
 
-This repository contains **8 component(s)**. Click on any component below for detailed documentation.
+This repository contains **9 component(s)**. Click on any component below for detailed documentation.
 
 ## Components
 
@@ -59,6 +59,13 @@ Composes comprehensive documentation, renders diagrams, and performs AI-assisted
 **Location**: `src/repo_explainer/html_generator.py`  
 
 Converts markdown documentation to HTML with navigation, update banners, and a history page.
+
+### [Team Directory](team-directory.md)
+
+**Type**: `documentation`  
+**Location**: `ANOTHERTEST.MD`  
+
+Team contact information and engineer directory for support and collaboration.
 
 ---
 
@@ -201,6 +208,16 @@ graph TD
   - Capture metadata and raw execution logs.
   - Orchestrate the documentation composition process.
 
+### Component: Team Directory
+- **ID**: `team-directory`
+- **Type**: `documentation`
+- **Location**: `ANOTHERTEST.MD`
+- **Purpose**: Provides team contact information and engineer directory for support and collaboration.
+- **Responsibilities**:
+  - Maintain up-to-date contact info for engineering teams.
+  - Provide emergency contact details and response time expectations.
+  - Guide users on how to reach different engineering domains.
+
 ## Data Flow
 1. **Input**: User provides a repository path or URL to the `cli`.
 2. **Loading**: `RepositoryLoader` resolves the path or clones the repo.
@@ -244,6 +261,10 @@ graph TD
         OM[Output Manager<br/>src/repo_explainer/output_manager.py]
         DC[Doc Composer<br/>src/repo_explainer/doc_composer.py]
         HG[HTML Generator<br/>src/repo_explainer/html_generator.py]
+    end
+
+    subgraph "Support & Resources"
+        TD[Team Directory<br/>ANOTHERTEST.MD]
     end
 
     CLI --> RL

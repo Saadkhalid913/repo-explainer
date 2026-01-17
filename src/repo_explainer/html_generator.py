@@ -652,27 +652,51 @@ class HTMLGenerator:
 
                     # Build commit messages HTML (the useful part!)
                     commits_html = ""
+                    commit_summaries = update.get("commit_summaries", [])
                     if commits:
                         commit_items = []
-                        for c in commits[:5]:
+                        for i, c in enumerate(commits[:5]):
                             if isinstance(c, dict):
                                 sha = c.get("sha", "")
                                 msg = c.get("message", "No message")
                                 author = c.get("author", "Unknown")
+
+                                # Add AI summary if available
+                                summary_html = ""
+                                if i < len(commit_summaries) and commit_summaries[i]:
+                                    summary = commit_summaries[i]
+                                    summary_text = summary.get("summary", "")
+                                    category = summary.get("category", "unknown")
+                                    impact = summary.get("impact_level", "unknown")
+
+                                    if summary_text:
+                                        # Add category badge
+                                        category_badge = ""
+                                        if category != "unknown":
+                                            category_badge = f'<span class="summary-category category-{category}">{category.title()}</span>'
+
+                                        summary_html = f'''
+                                        <div class="commit-summary">
+                                            <div class="summary-text">{summary_text}</div>
+                                            {category_badge}
+                                        </div>
+                                        '''
+
                                 commit_items.append(f'''
                                     <div class="commit-item">
                                         <code class="commit-sha">{sha}</code>
                                         <span class="commit-msg">{msg}</span>
                                         <span class="commit-author">by {author}</span>
+                                        {summary_html}
                                     </div>
                                 ''')
                             else:
                                 # Legacy format (just SHA string)
                                 commit_items.append(f'<div class="commit-item"><code>{c}</code></div>')
-                        
+
                         commits_html = f'''
                         <div class="commits-section">
-                            <h4>📝 Commits Included</h4>
+                            <h4>📝 Commits & AI Summaries</h4>
                             {"".join(commit_items)}
                         </div>
                         '''
@@ -860,6 +884,38 @@ class HTMLGenerator:
                     font-size: 0.85rem;
                     flex-shrink: 0;
                 }}
+
+                .commit-summary {{
+                    margin-top: 0.5rem;
+                    padding: 0.5rem;
+                    background: #f8f9fa;
+                    border-left: 3px solid #0366d6;
+                    border-radius: 4px;
+                    font-size: 0.9rem;
+                }}
+
+                .summary-text {{
+                    color: #24292e;
+                    line-height: 1.4;
+                    margin-bottom: 0.25rem;
+                }}
+
+                .summary-category {{
+                    display: inline-block;
+                    padding: 0.15rem 0.5rem;
+                    border-radius: 12px;
+                    font-size: 0.75rem;
+                    font-weight: 500;
+                    text-transform: uppercase;
+                    letter-spacing: 0.5px;
+                }}
+
+                .category-features {{ background: #ddf4ff; color: #0a3069; }}
+                .category-fixes {{ background: #dafbe1; color: #0f5132; }}
+                .category-refactoring {{ background: #fff8c5; color: #664d03; }}
+                .category-documentation {{ background: #f1e5ff; color: #492c73; }}
+                .category-infrastructure {{ background: #ffeef0; color: #842029; }}
+                .category-dependencies {{ background: #e7f3ff; color: #055160; }}
 
                 .files-section {{
                     margin-top: 1rem;

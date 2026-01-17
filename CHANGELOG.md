@@ -5,6 +5,7 @@ All notable changes to this project will be documented in this file.
 ## [Unreleased] - 2026-01-17
 
 ### Added
+- **Team Directory**: Added `ANOTHERTEST.MD` providing comprehensive contact information and directory for engineering teams (Backend, Frontend, DevOps, etc.).
 - **Orchestrator Pattern**: Introduced a central `Orchestrator` to coordinate the analysis pipeline (loader, analyzer, AI runner, and document generation).
 - **OpenCode Runner**: New execution engine that separates AI command logic from the integration service and adds support for fallback AI providers.
 - **Claude CLI Fallback**: Added `ClaudeRunner` to provide analysis capabilities when the OpenCode CLI is not available.
@@ -27,6 +28,7 @@ All notable changes to this project will be documented in this file.
 - **Output Management**: Improved directory structure with separate `src/raw`, `src/logs`, and themed subdirectories.
 
 ### Affected Components
+- `team-directory` (ANOTHERTEST.MD) - **NEW**
 - `cli` (src/repo_explainer/cli.py)
 - `orchestrator` (src/repo_explainer/orchestrator.py) - **NEW**
 - `opencode-runner` (src/repo_explainer/opencode_runner.py) - **NEW**

@@ -272,3 +272,27 @@ def get_incremental_update_prompt(
         prompt += f"\n\n**Note:** Read the existing `{existing_components_path}` for context on current component structure.\n"
 
     return prompt
+
+
+def get_commit_summary_prompt(commit_info: dict, diff_content: str = "") -> str:
+    """
+    Generate a prompt for summarizing a commit's changes.
+
+    Args:
+        commit_info: Dictionary with commit information (sha, message, author, etc.)
+        diff_content: Git diff content for the commit
+
+    Returns:
+        Formatted prompt string for OpenCode analysis
+    """
+    file_list = "\n".join(f"- {f}" for f in commit_info.get("files", []))
+
+    return load_prompt("commit_summary").format(
+        commit_sha=commit_info.get("sha", ""),
+        commit_message=commit_info.get("message", ""),
+        author_name=commit_info.get("author_name", ""),
+        author_email=commit_info.get("author_email", ""),
+        date=commit_info.get("date", ""),
+        file_list=file_list,
+        diff_content=diff_content
+    )

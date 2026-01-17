@@ -503,7 +503,50 @@ def update(
         for commit in recent_commits[:3]:
             console.print(f"  [dim]{commit.short_sha}[/dim] {commit.message[:50]}")
 
-    # Initialize OpenCode service
+    # Generate AI summaries for commits
+    console.print("\n[bold]Generating commit summaries...[/bold]")
+    commit_summaries = []
+
+    if recent_commits:
+        # Initialize OpenCode service (reuse for summaries)
+        opencode = OpenCodeService(repo_path)
+
+        if not opencode.check_available():
+            console.print(
+                "\n[yellow]Warning:[/yellow] OpenCode CLI not found. "
+                "Commit summaries will be skipped."
+            )
+            commit_summaries = []
+        else:
+            for i, commit in enumerate(recent_commits):
+                if verbose:
+                    console.print(f"  [dim]Summarizing commit {i+1}/{len(recent_commits)}: {commit.short_sha}[/dim]")
+                try:
+                    # Get diff for this commit
+                    diff_content = loader.get_commit_diff(repo_path, commit.sha, branch=branch)
+                    summary = opencode.analyze_commit_changes(
+                        commit_info={
+                            "sha": commit.sha,
+                            "message": commit.message,
+                            "author_name": commit.author_name,
+                            "author_email": commit.author_email,
+                            "date": commit.date.isoformat() if hasattr(commit.date, 'isoformat') else str(commit.date),
+                            "files": commit.files
+                        },
+                        diff_content=diff_content
+                    )
+                    commit_summaries.append(summary)
+                except Exception as e:
+                    console.print(f"  [yellow]Warning:[/yellow] Failed to summarize {commit.short_sha}: {e}")
+                    commit_summaries.append({
+                        "summary": f"Commit: {commit.message}",
+                        "category": "unknown",
+                        "impact_level": "unknown",
+                        "breaking_changes": False,
+                        "details": "Summary generation failed"
+                    })
+
+    # Initialize OpenCode service (for the main analysis)
     opencode = OpenCodeService(repo_path)
 
     if not opencode.check_available():
@@ -574,11 +617,12 @@ def update(
         if saved_commit:
             console.print(f"[dim]Saved update marker: {saved_commit[:8]} ({branch})[/dim]")
 
-        # Record the update in history with full commit info
+        # Record the update in history with full commit info and summaries
         _record_update_history(
             output_dir=settings.output_dir,
             changed_files=changed_files,
             commits=recent_commits[:5],  # Pass full CommitInfo objects
+            commit_summaries=commit_summaries,
         )
 
         console.print(f"[bold]Output saved to:[/bold] [cyan]{output_manager.get_output_location()}[/cyan]\n")
@@ -671,6 +715,7 @@ def _record_update_history(
     output_dir: Path,
     changed_files: list[str],
     commits: list,  # List of CommitInfo objects
+    commit_summaries: list[dict] | None = None,
 ) -> None:
     """
     Record an update in the history file with meaningful summaries.
@@ -723,6 +768,7 @@ def _record_update_history(
         "categories": categories,
         "files": changed_files[:20],  # Limit to first 20
         "commits": commit_details,
+        "commit_summaries": commit_summaries or [],  # AI-generated summaries
     }
     history.insert(0, entry)
 

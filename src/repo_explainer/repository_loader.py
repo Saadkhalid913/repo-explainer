@@ -360,12 +360,23 @@ class RepositoryLoader:
                     return []
 
             # Filter out deleted files and non-code files
+            # Check if files exist in the TARGET BRANCH, not locally
+            # (user might be on a different branch)
             existing_files = []
             for f in changed_files:
-                file_path = repo_path / f
-                if file_path.exists() and file_path.is_file():
-                    # Skip common non-code files
-                    if not any(f.endswith(ext) for ext in ['.pyc', '.pyo', '.lock', '.log']):
+                # Skip common non-code files
+                if any(f.endswith(ext) for ext in ['.pyc', '.pyo', '.lock', '.log']):
+                    continue
+                
+                # Check if file exists in the target branch using git ls-tree
+                try:
+                    result = repo.git.ls_tree('--name-only', target_ref, f)
+                    if result.strip():  # File exists in target branch
+                        existing_files.append(f)
+                except Exception:
+                    # If git check fails, fall back to local check
+                    file_path = repo_path / f
+                    if file_path.exists() and file_path.is_file():
                         existing_files.append(f)
 
             return sorted(existing_files)
@@ -437,8 +448,52 @@ class RepositoryLoader:
             
             marker_file = marker_dir / "last_commit.txt"
             marker_file.write_text(target_sha)
-            
+
             return target_sha
         except Exception as e:
             console.print(f"[yellow]Warning: Could not save commit marker: {e}[/yellow]")
             return None
+
+    def get_commit_diff(
+        self,
+        repo_path: Path,
+        commit_sha: str,
+        branch: str = "main",
+    ) -> str:
+        """
+        Get the diff content for a specific commit.
+
+        Args:
+            repo_path: Path to the git repository
+            commit_sha: SHA of the commit to get diff for
+            branch: Branch context for the diff (default: "main")
+
+        Returns:
+            Diff content as string, or empty string on error
+        """
+        try:
+            repo = Repo(repo_path)
+
+            # Get the commit object
+            commit = repo.commit(commit_sha)
+
+            # If it's not a merge commit, get diff with parent
+            if len(commit.parents) == 1:
+                parent = commit.parents[0]
+                diff = commit.diff(parent, create_patch=True)
+            else:
+                # For merge commits, get diff with first parent (mainline)
+                diff = commit.diff(commit.parents[0], create_patch=True)
+
+            # Convert diff objects to string
+            diff_content = ""
+            for d in diff:
+                diff_content += f"--- a/{d.a_path}\n+++ b/{d.b_path}\n"
+                if d.diff:
+                    diff_content += d.diff.decode('utf-8', errors='replace')
+
+            return diff_content
+
+        except Exception as e:
+            console.print(f"[yellow]Warning: Could not get diff for commit {commit_sha}: {e}[/yellow]")
+            return ""

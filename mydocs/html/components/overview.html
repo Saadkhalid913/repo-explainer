@@ -374,7 +374,7 @@
         <main class="content">
             <article class="markdown-body">
                 <h1 id="components-overview">Components Overview</h1>
-<p>This repository contains <strong>8 component(s)</strong>. Click on any component below for detailed documentation.</p>
+<p>This repository contains <strong>9 component(s)</strong>. Click on any component below for detailed documentation.</p>
 <h2 id="components">Components</h2>
 <h3 id="cli-module"><a href="cli.html">CLI Module</a></h3>
 <p><strong>Type</strong>: <code>module</code><br />
@@ -408,6 +408,10 @@
 <p><strong>Type</strong>: <code>module</code><br />
 <strong>Location</strong>: <code>src/repo_explainer/html_generator.py</code>  </p>
 <p>Converts markdown documentation to HTML with navigation, update banners, and a history page.</p>
+<h3 id="team-directory"><a href="team-directory.html">Team Directory</a></h3>
+<p><strong>Type</strong>: <code>documentation</code><br />
+<strong>Location</strong>: <code>ANOTHERTEST.MD</code>  </p>
+<p>Team contact information and engineer directory for support and collaboration.</p>
 <hr />
 <h2 id="architecture-overview">Architecture Overview</h2>
 <h2 id="architecture-overview_1">Architecture Overview</h2>
@@ -549,6 +553,17 @@
 <li>Capture metadata and raw execution logs.</li>
 <li>Orchestrate the documentation composition process.</li>
 </ul>
+<h3 id="component-team-directory">Component: Team Directory</h3>
+<ul>
+<li><strong>ID</strong>: <code>team-directory</code></li>
+<li><strong>Type</strong>: <code>documentation</code></li>
+<li><strong>Location</strong>: <code>ANOTHERTEST.MD</code></li>
+<li><strong>Purpose</strong>: Provides team contact information and engineer directory for support and collaboration.</li>
+<li><strong>Responsibilities</strong>:</li>
+<li>Maintain up-to-date contact info for engineering teams.</li>
+<li>Provide emergency contact details and response time expectations.</li>
+<li>Guide users on how to reach different engineering domains.</li>
+</ul>
 <h2 id="data-flow">Data Flow</h2>
 <ol>
 <li><strong>Input</strong>: User provides a repository path or URL to the <code>cli</code>.</li>
@@ -591,6 +606,10 @@
 <span class="w">        </span><span class="n">OM</span><span class="p">[</span><span class="n">Output</span><span class="w"> </span><span class="n">Manager</span><span class="o">&lt;</span><span class="n">br</span><span class="o">/&gt;</span><span class="n">src</span><span class="o">/</span><span class="n">repo_explainer</span><span class="o">/</span><span class="n">output_manager</span><span class="o">.</span><span class="n">py</span><span class="p">]</span>
 <span class="w">        </span><span class="n">DC</span><span class="p">[</span><span class="n">Doc</span><span class="w"> </span><span class="n">Composer</span><span class="o">&lt;</span><span class="n">br</span><span class="o">/&gt;</span><span class="n">src</span><span class="o">/</span><span class="n">repo_explainer</span><span class="o">/</span><span class="n">doc_composer</span><span class="o">.</span><span class="n">py</span><span class="p">]</span>
 <span class="w">        </span><span class="n">HG</span><span class="p">[</span><span class="n">HTML</span><span class="w"> </span><span class="n">Generator</span><span class="o">&lt;</span><span class="n">br</span><span class="o">/&gt;</span><span class="n">src</span><span class="o">/</span><span class="n">repo_explainer</span><span class="o">/</span><span class="n">html_generator</span><span class="o">.</span><span class="n">py</span><span class="p">]</span>
+<span class="w">    </span><span class="n">end</span>
+
+<span class="w">    </span><span class="n">subgraph</span><span class="w"> </span><span class="s2">&quot;Support &amp; Resources&quot;</span>
+<span class="w">        </span><span class="n">TD</span><span class="p">[</span><span class="n">Team</span><span class="w"> </span><span class="n">Directory</span><span class="o">&lt;</span><span class="n">br</span><span class="o">/&gt;</span><span class="n">ANOTHERTEST</span><span class="o">.</span><span class="n">MD</span><span class="p">]</span>
 <span class="w">    </span><span class="n">end</span>
 
 <span class="w">    </span><span class="n">CLI</span><span class="w"> </span><span class="o">--&gt;</span><span class="w"> </span><span class="n">RL</span>

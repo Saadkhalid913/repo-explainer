@@ -1,5 +1,5 @@
 {
-  "timestamp": "20260117_150727",
+  "timestamp": "20260117_152236",
   "files": {
     "dataflow": "mydocs/dataflow/overview.md",
     "components": "mydocs/diagrams/components.svg",
@@ -11,6 +11,7 @@
     "component_output-manager": "mydocs/components/output-manager.md",
     "component_doc-composer": "mydocs/components/doc-composer.md",
     "component_html-generator": "mydocs/components/html-generator.md",
+    "component_team-directory": "mydocs/components/team-directory.md",
     "dependencies_overview": "mydocs/dependencies/overview.md",
     "dependencies_downstream": "mydocs/dependencies/downstream.md",
     "dependencies_upstream": "mydocs/dependencies/upstream.md",

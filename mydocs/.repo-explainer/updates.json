@@ -1,5 +1,51 @@
 [
   {
+    "timestamp": "2026-01-17T15:22:42.030541",
+    "type": "incremental",
+    "summary": "Test updates",
+    "files_changed": 1,
+    "categories": {
+      "tests": [
+        "ANOTHERTEST.MD"
+      ]
+    },
+    "files": [
+      "ANOTHERTEST.MD"
+    ],
+    "commits": [
+      {
+        "sha": "d5afe06d",
+        "message": "THIS IS ANOTHER TEST",
+        "author": "Maaz Ghazi",
+        "date": "2026-01-17T15:13:51-05:00"
+      },
+      {
+        "sha": "181c6f80",
+        "message": "Merge pull request #3 from Saadkhalid913/test_change",
+        "author": "Maaz Ghazi",
+        "date": "2026-01-17T14:53:00-05:00"
+      },
+      {
+        "sha": "a497daf8",
+        "message": "adding contact resource",
+        "author": "MaazGhazi",
+        "date": "2026-01-17T14:40:43-05:00"
+      },
+      {
+        "sha": "7da55d1b",
+        "message": "save",
+        "author": "Saad Khalid",
+        "date": "2026-01-17T13:11:13-05:00"
+      },
+      {
+        "sha": "4e1ebfc2",
+        "message": "add reqs",
+        "author": "Saad Khalid",
+        "date": "2026-01-17T13:10:45-05:00"
+      }
+    ]
+  },
+  {
     "timestamp": "2026-01-17T15:07:30.632195",
     "type": "incremental",
     "files_changed": 30,

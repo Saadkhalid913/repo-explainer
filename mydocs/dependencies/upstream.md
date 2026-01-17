@@ -81,3 +81,11 @@ _No components depend on this component_
 
 ---
 
+## [Team Directory](../components/team-directory.md)
+
+**Location**: `ANOTHERTEST.MD`
+
+_No components depend on this component_
+
+---
+
