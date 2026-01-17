@@ -1,0 +1,38 @@
+classDiagram
+    class FastAPI {
+        +openapi()
+        +setup()
+        +include_router()
+    }
+    class Starlette {
+        +add_middleware()
+        +add_route()
+    }
+    class APIRouter {
+        +get()
+        +post()
+        +include_router()
+    }
+    class APIRoute {
+        +path: str
+        +endpoint: Callable
+        +get_route_handler()
+    }
+    class Dependant {
+        +call: Callable
+        +dependencies: List[Dependant]
+        +path_params
+        +query_params
+        +body_params
+    }
+    class PydanticModel {
+        +validate()
+        +schema()
+    }
+
+    FastAPI --|> Starlette : Inherits
+    FastAPI *-- APIRouter : Has main router
+    APIRouter *-- APIRoute : Contains routes
+    APIRouter o-- APIRouter : Includes sub-routers
+    APIRoute --> Dependant : Uses for DI & Validation
+    Dependant --> PydanticModel : Uses for Schema

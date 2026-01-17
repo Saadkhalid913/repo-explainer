@@ -1,0 +1,27 @@
+sequenceDiagram
+    participant Client
+    participant Middleware
+    participant Router as APIRoute
+    participant DI as Dependency Solver
+    participant Validator as Pydantic
+    participant Endpoint
+    participant Serializer
+
+    Client->>Middleware: HTTP Request
+    Middleware->>Router: Forward Request
+    Router->>DI: solve_dependencies(Request)
+    DI->>Validator: Validate Input (Query, Body, Path)
+    
+    alt Validation Error
+        Validator-->>Client: 422 Validation Error
+    else Valid Data
+        Validator->>DI: Return Parsed Data
+        DI->>Endpoint: Call(dependencies, data)
+        
+        Endpoint->>Serializer: Return Result
+        Serializer->>Validator: Validate Response Model
+        Validator->>Serializer: Serialized JSON
+        
+        Serializer-->>Middleware: JSON Response
+        Middleware-->>Client: HTTP Response
+    end

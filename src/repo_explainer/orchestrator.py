@@ -363,6 +363,14 @@ class Orchestrator:
         flow_diag = diagram_gen.generate_dataflow_diagram(components)
         diagrams.append(flow_diag)
 
+        # Generate dependency graph (internal + external deps)
+        dep_diag = diagram_gen.generate_dependency_graph(components)
+        diagrams.append(dep_diag)
+
+        # Generate class/entity diagram
+        class_diag = diagram_gen.generate_class_diagram(components)
+        diagrams.append(class_diag)
+
         return diagrams
 
     def _generate_documentation(

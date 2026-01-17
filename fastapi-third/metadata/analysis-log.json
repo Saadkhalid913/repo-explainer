@@ -1,0 +1,38 @@
+{
+  "analysis_timestamp": "2026-01-17T11:52:04.312430",
+  "repo_explainer_version": "0.1.0",
+  "repository": {
+    "name": "repo-explainer-dehe4qu3",
+    "path": "/var/folders/7z/cn83yhqs1kgcb548ypy396fh0000gn/T/repo-explainer-dehe4qu3",
+    "primary_language": "python",
+    "languages": [
+      "python",
+      "javascript"
+    ],
+    "size_category": "large",
+    "file_count": 1255,
+    "total_lines": 107163,
+    "git_remote": "git@github.com:fastapi/fastapi.git",
+    "git_branch": "master",
+    "git_commit": "0c7f2b66"
+  },
+  "configuration": {
+    "depth": "deep",
+    "llm_model": "google/gemini-2.5-flash-preview",
+    "opencode_binary": "opencode",
+    "use_claude_fallback": false
+  },
+  "sessions": [
+    {
+      "session_id": "3b8d30b2",
+      "command": "project:deep-scan",
+      "started_at": "2026-01-17T11:50:25.358131",
+      "ended_at": "2026-01-17T11:52:00.019971",
+      "exit_code": 0,
+      "output_files": [
+        "fastapi-third/analysis_3b8d30b2.md"
+      ]
+    }
+  ],
+  "errors": []
+}

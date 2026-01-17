@@ -14,7 +14,11 @@ class DiagramGenerator:
     def __init__(self, output_dir: Path):
         self.output_dir = output_dir
         self.diagrams_dir = output_dir / "architecture" / "diagrams"
+        self.deps_diagrams_dir = output_dir / "dependencies" / "diagrams"
+        self.data_diagrams_dir = output_dir / "data-models" / "diagrams"
         self.diagrams_dir.mkdir(parents=True, exist_ok=True)
+        self.deps_diagrams_dir.mkdir(parents=True, exist_ok=True)
+        self.data_diagrams_dir.mkdir(parents=True, exist_ok=True)
         self._mmdc_path = shutil.which("mmdc")
 
     def _convert_to_png(self, mmd_path: Path) -> Optional[Path]:
@@ -248,6 +252,110 @@ class DiagramGenerator:
         ]
         first_line = diagram.strip().split("\n")[0].lower()
         return any(first_line.startswith(start.lower()) for start in valid_starts)
+
+    def generate_dependency_graph(
+        self,
+        components: list[ComponentInfo],
+    ) -> DiagramInfo:
+        """Generate dependency graph showing internal and external dependencies."""
+        lines = ["flowchart LR"]
+        
+        # Collect all external deps
+        all_external: set[str] = set()
+        for c in components:
+            all_external.update(c.external_dependencies)
+        
+        # Create subgraph for internal components
+        lines.append("    subgraph Internal")
+        for c in components:
+            node_id = self._sanitize_id(c.id)
+            lines.append(f'        {node_id}["{c.name}"]')
+        lines.append("    end")
+        
+        # Create subgraph for external dependencies (limit to top 15)
+        external_list = sorted(all_external)[:15]
+        if external_list:
+            lines.append("    subgraph External")
+            for ext in external_list:
+                ext_id = self._sanitize_id(f"ext_{ext}")
+                lines.append(f'        {ext_id}(("{ext}"))')
+            lines.append("    end")
+        
+        # Add internal dependency edges
+        for c in components:
+            node_id = self._sanitize_id(c.id)
+            for dep in c.dependencies:
+                dep_id = self._sanitize_id(dep)
+                lines.append(f"    {node_id} --> {dep_id}")
+        
+        # Add external dependency edges (limit connections for readability)
+        for c in components:
+            node_id = self._sanitize_id(c.id)
+            for ext in c.external_dependencies[:5]:  # Limit per component
+                if ext in external_list:
+                    ext_id = self._sanitize_id(f"ext_{ext}")
+                    lines.append(f"    {node_id} -.-> {ext_id}")
+        
+        mermaid_code = "\n".join(lines)
+        output_path = self.deps_diagrams_dir / "dependency-graph.mmd"
+        output_path.write_text(mermaid_code)
+        
+        # Convert to PNG
+        png_path = self._convert_to_png(output_path)
+        
+        return DiagramInfo(
+            diagram_type=DiagramType.DEPENDENCY,
+            title="Dependency Graph",
+            mermaid_code=mermaid_code,
+            output_path=png_path or output_path,
+            related_components=[c.id for c in components],
+        )
+
+    def generate_class_diagram(
+        self,
+        components: list[ComponentInfo],
+        classes: Optional[list[dict]] = None,
+    ) -> DiagramInfo:
+        """Generate class/entity diagram from analyzed classes."""
+        lines = ["classDiagram"]
+        
+        if classes:
+            # Use provided class info
+            for cls in classes[:20]:  # Limit for readability
+                class_name = self._sanitize_id(cls.get("name", "Unknown"))
+                lines.append(f"    class {class_name} {{")
+                for method in cls.get("methods", [])[:10]:
+                    lines.append(f"        +{method}()")
+                lines.append("    }")
+                
+                # Add inheritance
+                for base in cls.get("bases", []):
+                    base_name = self._sanitize_id(base)
+                    if base_name and base_name != "object":
+                        lines.append(f"    {base_name} <|-- {class_name}")
+        else:
+            # Generate placeholder based on components
+            for c in components[:10]:
+                class_name = self._sanitize_id(c.name)
+                lines.append(f"    class {class_name} {{")
+                lines.append(f"        +{c.component_type}")
+                lines.append(f"        +files: {len(c.files)}")
+                lines.append("    }")
+        
+        mermaid_code = "\n".join(lines)
+        output_path = self.data_diagrams_dir / "class-diagram.mmd"
+        output_path.write_text(mermaid_code)
+        
+        # Convert to PNG
+        png_path = self._convert_to_png(output_path)
+        
+        return DiagramInfo(
+            diagram_type=DiagramType.CLASS,
+            title="Class Diagram",
+            mermaid_code=mermaid_code,
+            output_path=png_path or output_path,
+            related_components=[c.id for c in components],
+        )
 
     def import_opencode_diagram(
         self,

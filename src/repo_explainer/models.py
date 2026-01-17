@@ -35,6 +35,8 @@ class DiagramType(str, Enum):
     SEQUENCE = "sequence"
     ER = "er"
     CALL_GRAPH = "call-graph"
+    DEPENDENCY = "dependency"
+    CLASS = "class"
 
 
 @dataclass
