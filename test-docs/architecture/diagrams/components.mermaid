@@ -15,9 +15,9 @@ graph TD
         Orch --> DiagGen[Diagram Generator]
     end
 
-    subgraph Output
-        DocGen --> Output[Output Manager]
-        DiagGen --> Output
+    subgraph OutputLayer[Output]
+        DocGen --> OutputMgr[Output Manager]
+        DiagGen --> OutputMgr
     end
 
     %% External Dependencies
