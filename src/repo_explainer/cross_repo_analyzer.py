@@ -2,6 +2,7 @@
 
 import json
 import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 
 from rich.console import Console
@@ -10,6 +11,9 @@ from .opencode_service import OpenCodeService
 from .repository_loader import RepoMetadata
 
 console = Console()
+
+# Max parallel OpenCode instances
+MAX_PARALLEL_OPENCODE = 8
 
 
 class CrossRepoAnalyzer:
@@ -35,7 +39,7 @@ class CrossRepoAnalyzer:
 
     def analyze(self) -> dict:
         """
-        Perform cross-repository analysis.
+        Perform cross-repository analysis (parallelized where possible).
 
         Returns:
             Dictionary with:
@@ -45,14 +49,20 @@ class CrossRepoAnalyzer:
             - shared_dependencies: Common external packages
             - service_graph: Service dependency graph
         """
-        console.print("[dim]  Detecting inter-service communication...[/dim]")
-        service_mesh = self._detect_service_mesh()
+        # These can run in parallel (they both use OpenCode)
+        console.print(
+            "[dim]  Analyzing service mesh and events in parallel...[/dim]")
 
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            mesh_future = executor.submit(self._detect_service_mesh)
+            events_future = executor.submit(self._detect_event_flows)
+
+            service_mesh = mesh_future.result()
+            event_flows = events_future.result()
+
+        # These are fast local operations, run sequentially
         console.print("[dim]  Mapping API contracts...[/dim]")
         api_contracts = self._detect_api_contracts()
-
-        console.print("[dim]  Analyzing event flows...[/dim]")
-        event_flows = self._detect_event_flows()
 
         console.print("[dim]  Identifying shared dependencies...[/dim]")
         shared_deps = self._detect_shared_dependencies()
@@ -70,7 +80,7 @@ class CrossRepoAnalyzer:
 
     def _detect_service_mesh(self) -> dict:
         """
-        Detect how services communicate with each other.
+        Detect how services communicate with each other (parallelized).
 
         Strategy:
         1. Search for HTTP client usage (requests, httpx, fetch, axios)
@@ -85,27 +95,48 @@ class CrossRepoAnalyzer:
             "grpc_calls": [],
         }
 
-        for meta in self.repo_metadata:
-            result = self.analysis_results.get(meta.name)
-            if not result or not result["result"].success:
-                continue
+        # Filter to valid repos
+        valid_repos = [
+            meta for meta in self.repo_metadata
+            if self.analysis_results.get(meta.name) and self.analysis_results[meta.name]["result"].success
+        ]
 
-            # Use OpenCode to analyze each repo for outbound calls
+        def analyze_repo_mesh(meta: RepoMetadata) -> dict:
+            """Analyze a single repo for service mesh patterns."""
             prompt = self._get_service_mesh_prompt(meta.name)
             service = OpenCodeService(repo_path=meta.path)
+            result = {"http_calls": [], "grpc_calls": [], "name": meta.name}
 
             analysis_result = service.run_command(prompt)
 
             if analysis_result.success:
-                # Look for the generated service-mesh JSON file
                 mesh_file = meta.path / f"service-mesh-{meta.name}.json"
                 if mesh_file.exists():
                     try:
                         mesh_data = json.loads(mesh_file.read_text())
-                        service_mesh["http_calls"].extend(mesh_data.get("http_calls", []))
-                        service_mesh["grpc_calls"].extend(mesh_data.get("grpc_calls", []))
+                        result["http_calls"] = mesh_data.get("http_calls", [])
+                        result["grpc_calls"] = mesh_data.get("grpc_calls", [])
                     except json.JSONDecodeError:
-                        console.print(f"[yellow]Warning:[/yellow] Could not parse service mesh data for {meta.name}")
+                        pass
+            return result
+
+        # Run in parallel
+        with ThreadPoolExecutor(max_workers=MAX_PARALLEL_OPENCODE) as executor:
+            futures = {executor.submit(
+                analyze_repo_mesh, meta): meta for meta in valid_repos}
+
+            for future in as_completed(futures):
+                meta = futures[future]
+                try:
+                    result = future.result()
+                    service_mesh["http_calls"].extend(result["http_calls"])
+                    service_mesh["grpc_calls"].extend(result["grpc_calls"])
+                    if self.verbose:
+                        console.print(
+                            f"    [dim]✓ {meta.name} mesh analyzed[/dim]")
+                except Exception as e:
+                    console.print(
+                        f"[yellow]Warning:[/yellow] Service mesh analysis failed for {meta.name}: {e}")
 
         return service_mesh
 
@@ -147,13 +178,14 @@ class CrossRepoAnalyzer:
                                         "component": component.get("name"),
                                     })
                 except json.JSONDecodeError:
-                    console.print(f"[yellow]Warning:[/yellow] Could not parse components.json for {meta.name}")
+                    console.print(
+                        f"[yellow]Warning:[/yellow] Could not parse components.json for {meta.name}")
 
         return api_contracts
 
     def _detect_event_flows(self) -> dict:
         """
-        Detect event-driven communication patterns.
+        Detect event-driven communication patterns (parallelized).
 
         Strategy:
         1. Search for event publishing (Kafka, RabbitMQ, Redis pub/sub)
@@ -169,32 +201,56 @@ class CrossRepoAnalyzer:
             "events": [],
         }
 
-        for meta in self.repo_metadata:
-            result = self.analysis_results.get(meta.name)
-            if not result or not result["result"].success:
-                continue
+        # Filter to valid repos
+        valid_repos = [
+            meta for meta in self.repo_metadata
+            if self.analysis_results.get(meta.name) and self.analysis_results[meta.name]["result"].success
+        ]
 
-            # Use OpenCode to detect events
+        def analyze_repo_events(meta: RepoMetadata) -> dict:
+            """Analyze a single repo for event patterns."""
             prompt = self._get_event_detection_prompt(meta.name)
             service = OpenCodeService(repo_path=meta.path)
+            result = {"name": meta.name, "published": [], "subscribed": []}
 
             analysis_result = service.run_command(prompt)
 
             if analysis_result.success:
-                # Look for the generated events JSON file
                 events_file = meta.path / f"events-{meta.name}.json"
                 if events_file.exists():
                     try:
                         events = json.loads(events_file.read_text())
-                        event_flows["publishers"][meta.name] = events.get("published", [])
-                        event_flows["subscribers"][meta.name] = events.get("subscribed", [])
-
-                        # Add to global event list
-                        for event in events.get("published", []):
-                            if event not in event_flows["events"]:
-                                event_flows["events"].append(event)
+                        result["published"] = events.get("published", [])
+                        result["subscribed"] = events.get("subscribed", [])
                     except json.JSONDecodeError:
-                        console.print(f"[yellow]Warning:[/yellow] Could not parse events data for {meta.name}")
+                        pass
+            return result
+
+        # Run in parallel
+        with ThreadPoolExecutor(max_workers=MAX_PARALLEL_OPENCODE) as executor:
+            futures = {executor.submit(
+                analyze_repo_events, meta): meta for meta in valid_repos}
+
+            for future in as_completed(futures):
+                meta = futures[future]
+                try:
+                    result = future.result()
+                    event_flows["publishers"][result["name"]
+                                              ] = result["published"]
+                    event_flows["subscribers"][result["name"]
+                                               ] = result["subscribed"]
+
+                    # Add to global event list
+                    for event in result["published"]:
+                        if event not in event_flows["events"]:
+                            event_flows["events"].append(event)
+
+                    if self.verbose:
+                        console.print(
+                            f"    [dim]✓ {meta.name} events analyzed[/dim]")
+                except Exception as e:
+                    console.print(
+                        f"[yellow]Warning:[/yellow] Event analysis failed for {meta.name}: {e}")
 
         return event_flows
 
