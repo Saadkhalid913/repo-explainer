@@ -115,7 +115,7 @@ class OutputManager:
 
         # Compose coherent documentation
         if result.success and opencode_artifacts:
-            composer = DocComposer(self.output_dir)
+            composer = DocComposer(self.output_dir, repo_path=repo_path)
             composed_files = composer.compose(
                 repo_path=repo_path,
                 depth=depth,

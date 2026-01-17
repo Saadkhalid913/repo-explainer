@@ -15,14 +15,16 @@ console = Console()
 class DocComposer:
     """Composes coherent documentation from OpenCode artifacts."""
 
-    def __init__(self, output_dir: Path):
+    def __init__(self, output_dir: Path, repo_path: Path | None = None):
         """
         Initialize the document composer.
 
         Args:
             output_dir: Directory containing OpenCode artifacts
+            repo_path: Path to the repository being analyzed (optional)
         """
         self.output_dir = output_dir
+        self.repo_path = repo_path or Path.cwd()
         self.src_dir = output_dir / "src"
         self.raw_dir = output_dir / "src" / "raw"
         self.diagrams_dir = output_dir / "diagrams"
@@ -604,7 +606,7 @@ Just output the raw Mermaid syntax starting with the diagram type (e.g., 'graph'
             Dictionary containing components data, or empty dict if not found
         """
         # Try to find components.json in the repository root
-        components_json = self.raw_dir.parent.parent / "components.json"
+        components_json = self.repo_path / "components.json"
 
         if not components_json.exists():
             # Try in raw directory
@@ -612,7 +614,9 @@ Just output the raw Mermaid syntax starting with the diagram type (e.g., 'graph'
 
         if components_json.exists():
             try:
-                return json.loads(components_json.read_text())
+                data = json.loads(components_json.read_text())
+                console.print(f"[dim]  Found components data: {len(data.get('components', []))} component(s)[/dim]")
+                return data
             except json.JSONDecodeError:
                 console.print("[yellow]  Warning: Could not parse components.json[/yellow]")
                 return {}
