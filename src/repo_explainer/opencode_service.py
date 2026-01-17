@@ -118,7 +118,7 @@ class OpenCodeService:
             process.wait(timeout=300)
 
             output = "".join(output_lines)
-            error = process.stderr.read() if process.returncode != 0 else None
+            error = process.stderr.read() if process.stderr and process.returncode != 0 else None
 
             return OpenCodeResult(
                 success=process.returncode == 0,

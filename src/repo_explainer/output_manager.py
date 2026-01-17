@@ -45,6 +45,8 @@ class OutputManager:
         (self.output_dir / "components").mkdir(exist_ok=True)
         (self.output_dir / "dataflow").mkdir(exist_ok=True)
         (self.output_dir / "tech-stack").mkdir(exist_ok=True)
+        (self.output_dir / "dependencies").mkdir(exist_ok=True)
+        (self.output_dir / "api").mkdir(exist_ok=True)
 
     def write_analysis_result(
         self,
