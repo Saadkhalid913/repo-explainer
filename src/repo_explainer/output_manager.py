@@ -1,6 +1,7 @@
 """Output manager for saving analysis results."""
 
 import json
+import shutil
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -10,6 +11,14 @@ from rich.console import Console
 from .opencode_service import OpenCodeResult
 
 console = Console()
+
+# Standard OpenCode artifact filenames
+OPENCODE_ARTIFACTS = [
+    "architecture.md",
+    "components.mermaid",
+    "dataflow.mermaid",
+    "tech-stack.txt",
+]
 
 
 class OutputManager:
@@ -51,6 +60,10 @@ class OutputManager:
 
         output_files = {}
 
+        # Copy OpenCode artifacts from the analyzed repository
+        opencode_artifacts = self._copy_opencode_artifacts(repo_path)
+        output_files.update(opencode_artifacts)
+
         # Write raw output
         raw_output_file = self.output_dir / "logs" / f"analysis_{timestamp}.txt"
         raw_output_file.write_text(result.output)
@@ -65,6 +78,7 @@ class OutputManager:
             "success": result.success,
             "error": result.error,
             "artifacts": result.artifacts,
+            "opencode_artifacts": [str(p) for p in opencode_artifacts.values()],
         }
 
         metadata_file = self.output_dir / "logs" / f"metadata_{timestamp}.json"
@@ -78,6 +92,7 @@ class OutputManager:
             depth=depth,
             result=result,
             timestamp=timestamp,
+            opencode_artifacts=opencode_artifacts,
         )
         summary_file.write_text(summary_content)
         output_files["summary"] = summary_file
@@ -90,12 +105,38 @@ class OutputManager:
 
         return output_files
 
+    def _copy_opencode_artifacts(self, repo_path: Path) -> dict[str, Path]:
+        """
+        Copy OpenCode-generated artifacts from analyzed repository to output directory.
+
+        Args:
+            repo_path: Path to the analyzed repository
+
+        Returns:
+            Dictionary mapping artifact names to their output paths
+        """
+        artifacts = {}
+
+        for artifact_name in OPENCODE_ARTIFACTS:
+            source_file = repo_path / artifact_name
+            if source_file.exists():
+                # Copy to output directory
+                dest_file = self.output_dir / artifact_name
+                shutil.copy2(source_file, dest_file)
+                artifacts[artifact_name.replace(".", "_")] = dest_file
+
+                if self.output_dir.absolute() != repo_path.absolute():
+                    console.print(f"[dim]  Copied: {artifact_name}[/dim]")
+
+        return artifacts
+
     def _generate_summary(
         self,
         repo_path: Path,
         depth: str,
         result: OpenCodeResult,
         timestamp: str,
+        opencode_artifacts: dict[str, Path] | None = None,
     ) -> str:
         """
         Generate a markdown summary of the analysis.
@@ -124,29 +165,58 @@ class OutputManager:
         if result.error:
             summary += f"## Error\n\n```\n{result.error}\n```\n\n"
 
+        # List OpenCode artifacts (the human-readable docs!)
+        if opencode_artifacts:
+            summary += "## Generated Documentation\n\n"
+            summary += "**Human-Readable Artifacts:**\n"
+            for artifact_name, artifact_path in opencode_artifacts.items():
+                filename = artifact_path.name
+                description = self._get_artifact_description(filename)
+                summary += f"- `{filename}` - {description}\n"
+            summary += "\n"
+
+        # List technical artifacts
+        summary += "## Technical Output Files\n\n"
+        summary += "- `logs/analysis_*.txt` - Raw OpenCode output\n"
+        summary += "- `logs/metadata_*.json` - Analysis metadata\n"
+        summary += "- `analysis_*.json` - Structured output (JSON events)\n\n"
+
         if result.artifacts:
-            summary += "## Artifacts\n\n"
+            summary += "**OpenCode Session Artifacts:**\n"
             for name, path in result.artifacts.items():
                 summary += f"- **{name}:** `{path}`\n"
             summary += "\n"
 
-        summary += """## Output Files
-
-- `logs/analysis_*.txt` - Raw OpenCode output
-- `logs/metadata_*.json` - Analysis metadata
-- `analysis_*.json` - Structured output (JSON events)
-
-## Next Steps
-
-The analysis has been completed. Review the output files above for:
-- Repository structure insights
-- Technology stack information
-- Architecture patterns (if standard/deep analysis)
-
-For detailed analysis results, see the structured JSON output.
-"""
+        # Next steps
+        if opencode_artifacts:
+            summary += "## Next Steps\n\n"
+            summary += "**Start here:**\n"
+            if "architecture_md" in opencode_artifacts:
+                summary += f"1. Read `architecture.md` for a comprehensive overview\n"
+            if "components_mermaid" in opencode_artifacts:
+                summary += f"2. View `components.mermaid` for component diagrams\n"
+            if "dataflow_mermaid" in opencode_artifacts:
+                summary += f"3. View `dataflow.mermaid` for data flow visualization\n"
+            if "tech-stack_txt" in opencode_artifacts:
+                summary += f"4. Check `tech-stack.txt` for technology stack\n"
+        else:
+            summary += "## Next Steps\n\n"
+            summary += "Review the technical output files above for:\n"
+            summary += "- Repository structure insights\n"
+            summary += "- Technology stack information\n"
+            summary += "- Architecture patterns\n"
 
         return summary
+
+    def _get_artifact_description(self, filename: str) -> str:
+        """Get human-readable description for an artifact."""
+        descriptions = {
+            "architecture.md": "Architecture overview and design patterns",
+            "components.mermaid": "Component relationship diagram",
+            "dataflow.mermaid": "Data flow visualization",
+            "tech-stack.txt": "Technology stack summary",
+        }
+        return descriptions.get(filename, "Analysis artifact")
 
     def _write_structured_output(self, output: str, file_path: Path) -> None:
         """
