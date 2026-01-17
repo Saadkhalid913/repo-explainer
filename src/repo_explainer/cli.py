@@ -393,10 +393,10 @@ def update(
     auto: Annotated[
         bool,
         typer.Option(
-            "--auto",
-            help="Automatically detect changes since last documentation update",
+            "--auto/--no-auto",
+            help="Automatically detect changes since last documentation update (default: enabled)",
         ),
-    ] = False,
+    ] = True,
     branch: Annotated[
         str,
         typer.Option(
