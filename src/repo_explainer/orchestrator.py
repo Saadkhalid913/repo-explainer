@@ -56,6 +56,7 @@ class Orchestrator:
 
         self.sessions: list[OpenCodeSession] = []
         self.errors: list[str] = []
+        self.ai_backend_used: Optional[str] = None  # Track which backend was used
 
     @classmethod
     def from_existing(
@@ -121,7 +122,7 @@ class Orchestrator:
             self._update_progress(task_id, "Writing output files...")
             output_manager = OutputManager(self.output_dir)
             output_manager.write_analysis_log(
-                repo_info, self.depth, self.sessions, self.errors
+                repo_info, self.depth, self.sessions, self.errors, self.ai_backend_used
             )
             output_manager.write_config_snapshot()
 
@@ -167,6 +168,19 @@ class Orchestrator:
         # Try OpenCode first
         if self.use_opencode and self.opencode.is_available():
             self.console.print("[dim]Using OpenCode for analysis...[/]")
+            # Try to get OpenCode config info
+            opencode_info = self.opencode.get_config_info()
+            if opencode_info:
+                if "version" in opencode_info:
+                    self.console.print(f"[dim]OpenCode version: {opencode_info['version']}[/]")
+                if "config" in opencode_info:
+                    self.console.print(f"[dim]OpenCode config: {opencode_info['config'][:200]}...[/]")
+            else:
+                self.console.print(
+                    "[dim]Note: OpenCode uses its own configured model. "
+                    "Run 'opencode config show' to see which model it uses.[/]"
+                )
+            self.ai_backend_used = "opencode"
             session = self.opencode.run_analysis(
                 repo_path, self.depth, self.output_dir, context
             )
@@ -230,6 +244,10 @@ class Orchestrator:
         # Try Claude fallback
         if self.settings.use_claude_fallback and self.claude.is_available():
             self.console.print("[dim]Falling back to Claude CLI...[/]")
+            self.console.print(
+                "[dim]Note: Claude CLI uses its own configured model.[/]"
+            )
+            self.ai_backend_used = "claude_cli"
             session = self.claude.run_analysis(
                 repo_path, self.depth, self.output_dir, context
             )
@@ -246,7 +264,9 @@ class Orchestrator:
 
         # Fall back to direct LLM calls
         if self.settings.openrouter_api_key:
-            self.console.print("[dim]Using direct LLM calls...[/]")
+            model_name = self.settings.llm_model
+            self.console.print(f"[dim]Using direct LLM calls with model: {model_name}[/]")
+            self.ai_backend_used = f"openrouter_llm:{model_name}"
             diagrams, tech_stack, patterns = self._run_llm_analysis(
                 repo_path, context
             )
@@ -255,6 +275,7 @@ class Orchestrator:
             self.console.print(
                 "[yellow]No AI backend available, generating basic diagrams...[/]"
             )
+            self.ai_backend_used = "none"
             diagrams = self._generate_basic_diagrams(repo_path, context)
 
         return diagrams, tech_stack, patterns

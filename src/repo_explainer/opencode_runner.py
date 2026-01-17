@@ -41,6 +41,37 @@ class OpenCodeRunner:
         except (FileNotFoundError, subprocess.TimeoutExpired):
             return False
 
+    def get_config_info(self) -> Optional[dict[str, str]]:
+        """Get OpenCode configuration information, including model if available."""
+        info = {}
+        try:
+            # Try to get version info
+            version_result = subprocess.run(
+                [self.settings.opencode_binary, "--version"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            )
+            if version_result.returncode == 0:
+                info["version"] = version_result.stdout.strip()
+            
+            # Try to get config (if OpenCode supports it)
+            try:
+                config_result = subprocess.run(
+                    [self.settings.opencode_binary, "config", "show"],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
+                if config_result.returncode == 0:
+                    info["config"] = config_result.stdout.strip()
+            except (FileNotFoundError, subprocess.TimeoutExpired):
+                pass
+            
+            return info if info else None
+        except (FileNotFoundError, subprocess.TimeoutExpired):
+            return None
+
     def run_analysis(
         self,
         repo_path: Path,

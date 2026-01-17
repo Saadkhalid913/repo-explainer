@@ -35,6 +35,7 @@ class OutputManager:
         depth: AnalysisDepth,
         sessions: list[OpenCodeSession],
         errors: list[str],
+        ai_backend_used: Optional[str] = None,
     ) -> Path:
         """Write the analysis log file."""
         settings = get_settings()
@@ -61,6 +62,7 @@ class OutputManager:
                 "llm_model": settings.llm_model,
                 "opencode_binary": settings.opencode_binary,
                 "use_claude_fallback": settings.use_claude_fallback,
+                "ai_backend_used": ai_backend_used,
             },
             "sessions": [
                 {

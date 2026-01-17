@@ -1,0 +1,14 @@
+flowchart TD
+    User["User/Client"]
+    infra["infra"]
+    nix["nix"]
+    sdks["sdks"]
+    script["script"]
+    github["github"]
+    packages["packages"]
+    User --> infra
+    infra --> nix
+    nix --> sdks
+    sdks --> script
+    script --> github
+    github --> packages

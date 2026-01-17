@@ -1,0 +1,21 @@
+flowchart LR
+    subgraph Internal
+        infra["infra"]
+        nix["nix"]
+        sdks["sdks"]
+        script["script"]
+        github["github"]
+        packages["packages"]
+    end
+    subgraph External
+        ext_esbuild(("esbuild"))
+        ext_net(("net"))
+        ext_sst(("sst"))
+        ext_vite(("vite"))
+    end
+    sdks -.-> ext_sst
+    sdks -.-> ext_esbuild
+    github -.-> ext_sst
+    packages -.-> ext_sst
+    packages -.-> ext_net
+    packages -.-> ext_vite
