@@ -1,10 +1,9 @@
 # Team Contacts & Engineers
 
-This document interns all engineers and key personnel you can contact for support, questions, or collaboration.
+This document is all the new interns on the team 
+## Intern Team
 
-## Engineering Team
-
-### Backend Engineers
+### Backend interns
 
 **Sarah Chen** - Senior Backend Engineer
 - **Email:** sarah.chen@company.com
@@ -27,7 +26,7 @@ This document interns all engineers and key personnel you can contact for suppor
 - **Expertise:** Node.js, TypeScript, Serverless Architecture
 - **Available:** Mon-Fri, 8 AM - 5 PM PST
 
-### Frontend Engineers
+### Frontend interns
 
 **Emily Johnson** - Senior Frontend Engineer
 - **Email:** emily.j@company.com
