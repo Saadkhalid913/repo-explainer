@@ -10,6 +10,7 @@ from rich.progress import Progress, SpinnerColumn, TextColumn
 
 from . import __version__
 from .config import Settings, get_settings
+from .html_generator import DocsServer, HTMLGenerator
 from .opencode_service import OpenCodeService
 from .output_manager import OutputManager
 from .repository_loader import RepositoryLoader
@@ -69,6 +70,27 @@ def analyze(
             help="Force re-clone if repository already exists in tmp",
         ),
     ] = False,
+    generate_html: Annotated[
+        bool,
+        typer.Option(
+            "--generate-html",
+            help="Generate HTML documentation after analysis",
+        ),
+    ] = False,
+    html_port: Annotated[
+        int,
+        typer.Option(
+            "--html-port",
+            help="Port for HTML server (only with --generate-html)",
+        ),
+    ] = 8080,
+    no_browser: Annotated[
+        bool,
+        typer.Option(
+            "--no-browser",
+            help="Don't open browser (only with --generate-html)",
+        ),
+    ] = False,
     verbose: Annotated[
         bool,
         typer.Option("--verbose", "-V", help="Enable verbose output"),
@@ -84,12 +106,17 @@ def analyze(
         repo-explain analyze ./my-project
         repo-explain analyze https://github.com/torvalds/linux
         repo-explain analyze git@github.com:user/repo.git
+        
+        # Generate HTML and start server after analysis
+        repo-explain analyze . --generate-html
+        repo-explain analyze https://github.com/user/repo --generate-html --html-port 3000
 
     Invokes OpenCode to perform AI-powered analysis and produces:
     - Architecture overview (architecture.md)
     - Component diagrams (Mermaid format)
     - Data flow diagrams (Mermaid format)
     - Technology stack summary
+    - Optional: HTML documentation with live server
     """
     # Update settings based on CLI options
     settings = get_settings()
@@ -276,6 +303,60 @@ def analyze(
             console.print("\n[bold]Raw output:[/bold]")
             console.print(result.output[:500] + "..." if len(result.output) > 500 else result.output)
 
+        # Generate HTML if requested
+        if generate_html:
+            console.print("\n" + "="*60)
+            try:
+                from .html_generator import DocsServer, HTMLGenerator
+                
+                console.print(
+                    Panel.fit(
+                        "[bold blue]HTML Generation[/bold blue]\n"
+                        f"Converting markdown to HTML...",
+                        border_style="blue",
+                    )
+                )
+                
+                # Generate HTML
+                generator = HTMLGenerator(settings.output_dir)
+                html_dir = generator.generate()
+                
+                # Start server
+                server = DocsServer(html_dir, port=html_port)
+                url = server.start(open_browser=not no_browser)
+                
+                # Extract repo name for display
+                repo_name = repo_path.name
+                
+                console.print(f"\n[bold green]📚 Docs server started on {url}[/bold green]")
+                console.print(f"[dim]Serving documentation for: {repo_name}[/dim]\n")
+                console.print("[dim]Press Ctrl+C to stop the server[/dim]\n")
+                
+                # Keep server running
+                try:
+                    import signal
+                    import time
+                    
+                    def signal_handler(sig, frame):
+                        server.stop()
+                        raise typer.Exit(0)
+                    
+                    signal.signal(signal.SIGINT, signal_handler)
+                    
+                    while True:
+                        time.sleep(1)
+                        
+                except KeyboardInterrupt:
+                    server.stop()
+                    raise typer.Exit(0)
+                    
+            except Exception as e:
+                console.print(f"\n[red]Error generating HTML:[/red] {e}")
+                if verbose:
+                    import traceback
+                    console.print(f"\n[dim]{traceback.format_exc()}[/dim]")
+                # Don't exit - analysis was still successful
+
     else:
         console.print(f"\n[red]Analysis failed:[/red] {result.error}")
         if verbose and result.output:
@@ -314,6 +395,137 @@ def update(
     )
     console.print(f"\nRepository: [cyan]{repo_path}[/cyan]")
     console.print("\n[yellow]Coming soon![/yellow] For now, use 'analyze' to regenerate docs.")
+
+
+@app.command()
+def generate_html(
+    docs_path: Annotated[
+        Optional[Path],
+        typer.Argument(
+            help="Path to the documentation directory (defaults to ./opencode/docs or ./docs)",
+        ),
+    ] = None,
+    output: Annotated[
+        Optional[Path],
+        typer.Option(
+            "--output", "-o",
+            help="Output directory for HTML files (defaults to docs/html)",
+        ),
+    ] = None,
+    port: Annotated[
+        int,
+        typer.Option(
+            "--port", "-p",
+            help="Port to serve the documentation on",
+        ),
+    ] = 8080,
+    no_serve: Annotated[
+        bool,
+        typer.Option(
+            "--no-serve",
+            help="Generate HTML but don't start the server",
+        ),
+    ] = False,
+    no_browser: Annotated[
+        bool,
+        typer.Option(
+            "--no-browser",
+            help="Don't open the browser automatically",
+        ),
+    ] = False,
+) -> None:
+    """
+    Generate HTML documentation and start a local web server.
+
+    Converts markdown documentation to beautiful HTML pages with navigation
+    and serves them on a local HTTP server for easy viewing.
+
+    Examples:
+        repo-explain generate-html
+        repo-explain generate-html ./opencode/docs
+        repo-explain generate-html --port 3000
+        repo-explain generate-html --no-serve
+    """
+    # Determine docs path
+    if docs_path is None:
+        # Try common locations
+        candidates = [
+            Path("opencode/docs"),
+            Path("docs"),
+            Path("."),
+        ]
+        for candidate in candidates:
+            if candidate.exists() and (candidate / "index.md").exists():
+                docs_path = candidate
+                break
+        
+        if docs_path is None:
+            console.print("[red]Error:[/red] Could not find documentation directory")
+            console.print("[dim]Please specify the docs path explicitly or run from the project root[/dim]")
+            raise typer.Exit(1)
+    
+    if not docs_path.exists():
+        console.print(f"[red]Error:[/red] Documentation path does not exist: {docs_path}")
+        raise typer.Exit(1)
+
+    # Display header
+    console.print(
+        Panel.fit(
+            f"[bold blue]HTML Documentation Generator[/bold blue]\n"
+            f"Source: [cyan]{docs_path}[/cyan]",
+            border_style="blue",
+        )
+    )
+
+    # Generate HTML
+    try:
+        generator = HTMLGenerator(docs_path, output_dir=output)
+        html_dir = generator.generate()
+    except Exception as e:
+        console.print(f"\n[red]Error generating HTML:[/red] {e}")
+        if "--verbose" in typer.get_sys_argv():
+            import traceback
+            console.print(f"\n[dim]{traceback.format_exc()}[/dim]")
+        raise typer.Exit(1)
+
+    # Start server unless --no-serve is specified
+    if not no_serve:
+        try:
+            server = DocsServer(html_dir, port=port)
+            url = server.start(open_browser=not no_browser)
+            
+            # Extract repo name from the docs path for better messaging
+            repo_name = docs_path.parent.name if docs_path.name == "docs" else docs_path.name
+            
+            console.print(f"[bold green]📚 Docs server started on {url}[/bold green]")
+            console.print(f"[dim]Serving documentation for: {repo_name}[/dim]\n")
+            
+            # Keep server running
+            try:
+                import signal
+                import time
+                
+                # Handle Ctrl+C gracefully
+                def signal_handler(sig, frame):
+                    server.stop()
+                    raise typer.Exit(0)
+                
+                signal.signal(signal.SIGINT, signal_handler)
+                
+                # Keep main thread alive
+                while True:
+                    time.sleep(1)
+                    
+            except KeyboardInterrupt:
+                server.stop()
+                raise typer.Exit(0)
+                
+        except Exception as e:
+            console.print(f"\n[red]Error starting server:[/red] {e}")
+            raise typer.Exit(1)
+    else:
+        console.print(f"\n[green]✓[/green] HTML documentation generated at: [cyan]{html_dir}[/cyan]")
+        console.print(f"\n[dim]To view, open: {html_dir}/index.html[/dim]")
 
 
 if __name__ == "__main__":

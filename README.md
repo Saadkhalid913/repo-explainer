@@ -6,6 +6,8 @@ AI-powered repository documentation generator using OpenCode. Analyze **any** re
 
 📚 **Coherent Documentation** - Generates navigable, structured documentation with `index.md` as the entry point, organized subpages, and embedded diagrams.
 
+🌐 **HTML Export & Server** - Convert markdown docs to beautiful HTML with live preview server at `localhost:8080`.
+
 ✨ **Analyze Remote Repositories** - No need to clone manually! Pass a Git URL and we'll handle it.
 
 🚀 **Multi-Depth Analysis** - Choose from quick, standard, or deep analysis modes.
@@ -40,6 +42,15 @@ pip install -e .
 # Analyze a local repository
 repo-explain analyze ./my-project
 
+# Analyze and generate HTML in one command
+repo-explain analyze . --generate-html
+
+# Analyze remote repo with HTML output
+repo-explain analyze https://github.com/user/repo --generate-html
+
+# Generate HTML separately
+repo-explain generate-html
+
 # Analyze a remote GitHub repository
 repo-explain analyze https://github.com/torvalds/linux --depth quick
 
@@ -49,6 +60,68 @@ repo-explain analyze git@github.com:myorg/private-repo.git
 # Force re-clone to get latest changes
 repo-explain analyze https://github.com/facebook/react --force-clone
 ```
+
+### HTML Documentation Server
+
+After generating markdown documentation with `analyze`, you can convert it to beautiful, navigable HTML:
+
+```bash
+# Method 1: Generate HTML in one command with analysis
+repo-explain analyze . --generate-html
+
+# Method 2: Generate HTML separately after analysis
+repo-explain generate-html
+
+# Specify custom docs path
+repo-explain generate-html ./opencode/docs
+
+# Use custom port
+repo-explain generate-html --port 3000
+repo-explain analyze . --generate-html --html-port 3000
+
+# Generate HTML without starting server
+repo-explain generate-html --no-serve
+
+# Generate without opening browser
+repo-explain analyze . --generate-html --no-browser
+```
+
+**One-Command Workflow:**
+```bash
+# Analyze repository AND start HTML server in one command
+repo-explain analyze https://github.com/user/repo --generate-html
+
+# This will:
+# 1. Clone/load the repository
+# 2. Run OpenCode analysis
+# 3. Generate markdown documentation
+# 4. Convert markdown to HTML
+# 5. Start server at localhost:8080
+# 6. Open browser automatically
+```
+
+**Server Output:**
+```
+🌐 Generating HTML documentation...
+  Found 15 markdown file(s)
+    ✓ index.md → index.html
+    ✓ components/overview.md → components/overview.html
+    ...
+  ✓ 15 diagram(s) rendered successfully
+✓ Generated HTML documentation at docs/html
+
+✓ Docs server started on http://localhost:8080/index.html
+Serving documentation for: opencode
+
+Press Ctrl+C to stop the server
+```
+
+The HTML documentation includes:
+- **Beautiful UI** - Clean, modern design with sidebar navigation
+- **Responsive** - Works on desktop and mobile
+- **Code Highlighting** - Syntax-highlighted code blocks
+- **Embedded Diagrams** - All SVG diagrams displayed inline
+- **Fast Navigation** - Click between sections seamlessly
 
 **Where are results saved?**
 
@@ -145,6 +218,9 @@ Options:
   --depth, -d [quick|standard|deep]  Analysis depth (default: standard)
   --output, -o PATH                  Output directory (default: docs/)
   --force-clone                      Force re-clone for Git URLs
+  --generate-html                    Generate HTML and start server after analysis
+  --html-port PORT                   Port for HTML server (default: 8080, only with --generate-html)
+  --no-browser                       Don't open browser (only with --generate-html)
   --verbose, -V                      Show real-time analysis activity
   --help                            Show help message
 ```

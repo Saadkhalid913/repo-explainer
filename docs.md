@@ -12,6 +12,8 @@
 - **NEW**: Rich CLI UX (panels, spinners, verbose event streaming)
 - **NEW**: Coherent documentation generation with `index.md` as the entry point
 - **NEW**: `DocComposer` module renders Mermaid diagrams to SVG, emits subpages (components/dataflow/tech-stack), and records `.repo-explainer/coherence.json`
+- **NEW**: HTML documentation generator with live server (`generate-html` command)
+- **NEW**: Beautiful HTML UI with sidebar navigation, syntax highlighting, and responsive design
 - **NEW**: Validation script (`validate_coherence.py`) for documentation structure
 - **NEW**: Improved CLI output highlighting coherent docs first, with technical artifacts listed separately
 - Added Git URL detection/parsing + clone reuse via `RepositoryLoader`
@@ -31,6 +33,16 @@ repo-explain analyze ./my-project --depth quick
 **Analyze remote repository:**
 ```bash
 repo-explain analyze https://github.com/user/repo --depth quick
+```
+
+**Analyze and generate HTML in one command:**
+```bash
+repo-explain analyze . --generate-html
+```
+
+**Generate HTML documentation:**
+```bash
+repo-explain generate-html
 ```
 
 **Force re-clone:**
@@ -84,6 +96,9 @@ repo-explain analyze [REPO_PATH_OR_URL] [OPTIONS]
   - `deep`: Reserved for enriched analysis in later stages
 - `--output, -o PATH`: Output directory for generated documentation (default: `docs/`)
 - `--force-clone`: Remove existing clone for Git URLs before analyzing
+- `--generate-html`: Generate HTML documentation and start server after analysis completes
+- `--html-port PORT`: Port for HTML server (default: `8080`, only with `--generate-html`)
+- `--no-browser`: Don't automatically open browser (only with `--generate-html`)
 - `--verbose, -V`: Stream OpenCode tool events (files read, commands run, writes)
 - `--help`: Show command help
 
@@ -94,6 +109,7 @@ repo-explain analyze [REPO_PATH_OR_URL] [OPTIONS]
 4. Copy raw artifacts, logs, metadata, structured JSON into `output/src/`
 5. Compose coherent docs (index + subpages + diagrams) and render `.svg` diagrams when `mmdc` is installed
 6. Print success panel with output location and session data
+7. If `--generate-html`: Convert markdown to HTML, start server, and open browser
 
 **Output Layout (default `docs/`):**
 ```
@@ -137,6 +153,10 @@ _Remote Git URLs_
 repo-explain analyze https://github.com/torvalds/linux --depth quick
 repo-explain analyze git@github.com:user/repo.git --force-clone
 repo-explain analyze https://github.com/facebook/react --depth standard --verbose
+
+# Analyze and generate HTML in one command
+repo-explain analyze https://github.com/user/repo --generate-html
+repo-explain analyze . --generate-html --html-port 3000 --no-browser
 ```
 
 **Clone Location Diagnostics:**
@@ -147,6 +167,87 @@ repo-explain analyze https://github.com/octocat/Hello-World
 repo-explain analyze https://github.com/octocat/Hello-World --force-clone
 # Outputs "Removing existing clone" then reclones
 ```
+
+### `repo-explain generate-html`
+
+Generate HTML documentation from markdown files and optionally start a live server for easy browsing.
+
+Converts all markdown documentation to beautiful, navigable HTML pages with a modern UI, syntax highlighting, and embedded diagrams.
+
+**Usage:**
+```bash
+repo-explain generate-html [DOCS_PATH] [OPTIONS]
+```
+
+**Arguments:**
+- `DOCS_PATH` (optional): Path to documentation directory containing markdown files
+  - Defaults to auto-detection: tries `./opencode/docs`, `./docs`, or current directory
+  - Must contain an `index.md` file
+
+**Options:**
+- `--output, -o PATH`: Output directory for HTML files (default: `<docs_path>/html`)
+- `--port, -p PORT`: Port to serve documentation on (default: `8080`)
+- `--no-serve`: Generate HTML but don't start the server
+- `--no-browser`: Don't automatically open the browser
+
+**Features:**
+- **Modern UI**: Clean, GitHub-inspired design with sidebar navigation
+- **Responsive**: Works seamlessly on desktop and mobile
+- **Syntax Highlighting**: Code blocks with proper language detection
+- **Embedded Diagrams**: All SVG diagrams displayed inline
+- **Live Server**: Built-in HTTP server with automatic browser launch
+
+**Examples:**
+```bash
+# Generate HTML and start server (auto-opens browser)
+repo-explain generate-html
+
+# Specify custom docs path
+repo-explain generate-html ./opencode/docs
+
+# Use custom port
+repo-explain generate-html --port 3000
+
+# Generate HTML without starting server
+repo-explain generate-html --no-serve
+
+# Start server without opening browser
+repo-explain generate-html --no-browser
+```
+
+**Output:**
+```
+╭──────────────────────────────╮
+│ HTML Documentation Generator │
+│ Source: docs                 │
+╰──────────────────────────────╯
+
+🌐 Generating HTML documentation...
+  Found 13 markdown file(s)
+    ✓ index.md → index.html
+    ✓ components/overview.md → components/overview.html
+    ✓ dataflow/overview.md → dataflow/overview.html
+    ...
+  Copied diagrams to HTML output
+✓ Generated HTML documentation at docs/html
+
+✓ Docs server started on http://localhost:8080/index.html
+Serving documentation for: opencode
+
+Press Ctrl+C to stop the server
+```
+
+**Server Features:**
+- Automatic port selection (tries 8080-8089 if port is busy)
+- Graceful shutdown on Ctrl+C
+- Silent request logging for clean output
+- Serves static files including images and diagrams
+
+**Use Cases:**
+- **Quick Preview**: View documentation in a browser with proper styling
+- **Presentations**: Share localhost link during demos or meetings
+- **Review**: Easier navigation compared to raw markdown
+- **Publishing**: Generate static HTML for deployment to web servers
 
 ### `repo-explain update`
 
