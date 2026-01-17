@@ -119,9 +119,20 @@ Options:
   --depth, -d [quick|standard|deep]  Analysis depth (default: standard)
   --output, -o PATH                  Output directory (default: docs/)
   --force-clone                      Force re-clone for Git URLs
-  --verbose, -V                      Enable verbose output
+  --verbose, -V                      Show real-time analysis activity
   --help                            Show help message
 ```
+
+**Verbose Mode** - See what's happening in real-time:
+```bash
+repo-explain analyze ./my-project --verbose
+```
+
+Output shows:
+- 📄 Files being read
+- ⚙️  Commands being executed
+- ✏️  Files being written
+- 🔍 Search patterns
 
 ## Configuration
 

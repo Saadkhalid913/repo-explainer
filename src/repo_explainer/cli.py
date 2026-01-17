@@ -150,19 +150,66 @@ def analyze(
     # Run analysis based on depth
     console.print(f"\n[bold]Running {depth} analysis...[/bold]\n")
 
-    with Progress(
-        SpinnerColumn(),
-        TextColumn("[progress.description]{task.description}"),
-        console=console,
-    ) as progress:
-        task = progress.add_task(f"Analyzing repository ({depth} mode)...", total=None)
+    # Create event callback for verbose mode
+    def handle_opencode_event(event: dict) -> None:
+        """Handle OpenCode JSON events in verbose mode."""
+        if not verbose:
+            return
 
+        event_type = event.get("type")
+
+        if event_type == "tool_use":
+            # Extract tool call information
+            part = event.get("part", {})
+            tool = part.get("tool")
+            state = part.get("state", {})
+            input_data = state.get("input", {})
+
+            if tool == "read":
+                file_path = input_data.get("filePath", input_data.get("file_path", ""))
+                if file_path:
+                    console.print(f"  [dim]📄 Reading:[/dim] [cyan]{file_path}[/cyan]")
+
+            elif tool == "bash":
+                description = input_data.get("description", "")
+                command = input_data.get("command", "")
+                if description:
+                    console.print(f"  [dim]⚙️  Running:[/dim] {description}")
+                elif command:
+                    short_cmd = command[:60] + "..." if len(command) > 60 else command
+                    console.print(f"  [dim]⚙️  Running:[/dim] {short_cmd}")
+
+            elif tool == "write":
+                file_path = input_data.get("filePath", input_data.get("file_path", ""))
+                if file_path:
+                    console.print(f"  [dim]✏️  Writing:[/dim] [green]{file_path}[/green]")
+
+            elif tool == "glob":
+                pattern = input_data.get("pattern", "")
+                if pattern:
+                    console.print(f"  [dim]🔍 Searching:[/dim] {pattern}")
+
+    # Run analysis with streaming if verbose
+    if verbose:
+        console.print("[dim]Verbose mode: Showing OpenCode activity...[/dim]\n")
         if depth == "quick":
-            result = opencode.quick_scan()
+            result = opencode.quick_scan(event_callback=handle_opencode_event)
         else:
-            result = opencode.analyze_architecture()
+            result = opencode.analyze_architecture(event_callback=handle_opencode_event)
+    else:
+        with Progress(
+            SpinnerColumn(),
+            TextColumn("[progress.description]{task.description}"),
+            console=console,
+        ) as progress:
+            task = progress.add_task(f"Analyzing repository ({depth} mode)...", total=None)
 
-        progress.update(task, completed=True)
+            if depth == "quick":
+                result = opencode.quick_scan()
+            else:
+                result = opencode.analyze_architecture()
+
+            progress.update(task, completed=True)
 
     # Handle result
     if result.success:

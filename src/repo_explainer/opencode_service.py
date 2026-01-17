@@ -4,13 +4,29 @@ import json
 import subprocess
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from rich.console import Console
 
 from .config import get_settings
 
 console = Console()
+
+
+def parse_opencode_event(line: str) -> dict[str, Any] | None:
+    """
+    Parse a single JSON event from OpenCode output.
+
+    Args:
+        line: A line of JSON output
+
+    Returns:
+        Parsed event dict or None if parsing fails
+    """
+    try:
+        return json.loads(line)
+    except json.JSONDecodeError:
+        return None
 
 
 @dataclass
@@ -31,7 +47,12 @@ class OpenCodeService:
         self.repo_path = repo_path
         self.settings = get_settings()
 
-    def run_command(self, prompt: str, command: str | None = None) -> OpenCodeResult:
+    def run_command(
+        self,
+        prompt: str,
+        command: str | None = None,
+        event_callback: Callable[[dict], None] | None = None,
+    ) -> OpenCodeResult:
         """
         Run an OpenCode command against the repository.
 
@@ -56,30 +77,44 @@ class OpenCodeService:
             console.print(f"[dim]Running: {' '.join(cmd)}[/dim]")
 
         try:
-            result = subprocess.run(
+            # Use Popen for streaming output
+            process = subprocess.Popen(
                 cmd,
                 cwd=self.repo_path,
-                capture_output=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
                 text=True,
-                timeout=300,  # 5 minute timeout
+                bufsize=1,  # Line buffered
             )
 
-            output = result.stdout
-            error = result.stderr if result.returncode != 0 else None
-
-            # Try to parse JSON output
-            artifacts = {}
+            output_lines = []
             session_id = None
-            if self.settings.opencode_output_format == "json":
-                try:
-                    parsed = json.loads(output)
-                    artifacts = parsed.get("artifacts", {})
-                    session_id = parsed.get("session_id")
-                except json.JSONDecodeError:
-                    pass
+            artifacts = {}
+
+            # Stream and process output line by line
+            if process.stdout:
+                for line in process.stdout:
+                    output_lines.append(line)
+
+                    # Parse and callback for each JSON event
+                    if event_callback and self.settings.opencode_output_format == "json":
+                        event = parse_opencode_event(line.strip())
+                        if event:
+                            # Extract session ID
+                            if not session_id and "sessionID" in event:
+                                session_id = event["sessionID"]
+
+                            # Call the callback with the event
+                            event_callback(event)
+
+            # Wait for process to complete
+            process.wait(timeout=300)
+
+            output = "".join(output_lines)
+            error = process.stderr.read() if process.returncode != 0 else None
 
             return OpenCodeResult(
-                success=result.returncode == 0,
+                success=process.returncode == 0,
                 output=output,
                 error=error,
                 session_id=session_id,
@@ -105,7 +140,9 @@ class OpenCodeService:
                 error=f"Unexpected error: {str(e)}",
             )
 
-    def analyze_architecture(self) -> OpenCodeResult:
+    def analyze_architecture(
+        self, event_callback: Callable[[dict], None] | None = None
+    ) -> OpenCodeResult:
         """Run architecture analysis on the repository."""
         prompt = """Analyze this repository and generate:
 1. A high-level architecture overview (architecture.md)
@@ -119,9 +156,11 @@ Focus on:
 - External dependencies and integrations
 - Data flow between components
 """
-        return self.run_command(prompt)
+        return self.run_command(prompt, event_callback=event_callback)
 
-    def quick_scan(self) -> OpenCodeResult:
+    def quick_scan(
+        self, event_callback: Callable[[dict], None] | None = None
+    ) -> OpenCodeResult:
         """Run a quick scan of the repository."""
         prompt = """Perform a quick scan of this repository and summarize:
 1. Primary programming language(s)
@@ -129,7 +168,7 @@ Focus on:
 3. Main entry point(s)
 4. Key dependencies
 """
-        return self.run_command(prompt)
+        return self.run_command(prompt, event_callback=event_callback)
 
     def check_available(self) -> bool:
         """Check if OpenCode CLI is available."""
