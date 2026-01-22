@@ -1,0 +1,7 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "OpenCode Agent Configuration",
+  "description": "Defines agents and their associated skills for OpenCode 2026",
+  "type": "object",
+  "agents": {}
+}
