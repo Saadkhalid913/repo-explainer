@@ -1,0 +1,52 @@
+%%{init: {'theme': 'base', 'themeVariables': { 'primaryColor':'#1e88e5', 'primaryTextColor':'#000', 'primaryBorderColor':'#0d47a1', 'fontSize':'16px', 'fontFamily':'arial', 'nodePadding':'20px', 'padding':'20px'}, 'flowchart': {'htmlLabels': true, 'useMaxWidth': true}}}%%
+flowchart TD
+    Start(["<b>🚀 Start Pipeline</b>"]) --> Explorer(["<b>🔍<br/>Explorer Agent</b>"])
+    Explorer -->|planning/overview.md| Delegator(["<b>📋<br/>Delegator Agent</b>"])
+
+    Delegator -->|planning/task_allocation.md| ParallelExplore[["<b>⚙️ Spawn Parallel<br/>Explorer Subagents</b>"]]
+
+    ParallelExplore -->|Component 1| E1(["<b>🔍<br/>Explorer<br/>Subagent 1</b>"])
+    ParallelExplore -->|Component 2| E2(["<b>🔍<br/>Explorer<br/>Subagent 2</b>"])
+    ParallelExplore -->|Component 3| E3(["<b>🔍<br/>Explorer<br/>Subagent 3</b>"])
+    ParallelExplore -->|Component N| EN(["<b>🔍<br/>Explorer<br/>Subagent N</b>"])
+
+    E1 -->|planning/docs/comp1/| Merge1[["<b>🔄 Collect All<br/>Component Docs</b>"]]
+    E2 -->|planning/docs/comp2/| Merge1
+    E3 -->|planning/docs/comp3/| Merge1
+    EN -->|planning/docs/compN/| Merge1
+
+    Merge1 --> DocAgent(["<b>📚<br/>Documentation<br/>Agent</b>"])
+    DocAgent -->|planning/documentation/toc.json| ParallelSections[["<b>⚙️ Spawn Parallel<br/>Section Writers</b>"]]
+
+    ParallelSections -->|Section 1| S1(["<b>✏️<br/>Section<br/>Writer 1</b>"])
+    ParallelSections -->|Section 2| S2(["<b>✏️<br/>Section<br/>Writer 2</b>"])
+    ParallelSections -->|Section 3| S3(["<b>✏️<br/>Section<br/>Writer 3</b>"])
+
+    S1 -->|docs/section1/| Merge2[["<b>🔄 Collect All<br/>Sections</b>"]]
+    S2 -->|docs/section2/| Merge2
+    S3 -->|docs/section3/| Merge2
+
+    Merge2 --> OverviewWriter(["<b>📖<br/>Overview<br/>Writer Agent</b>"])
+    OverviewWriter -->|docs/index.md| End(["<b>✅ Complete</b>"])
+
+    style Start fill:#2e7d32,stroke:#1b5e20,stroke-width:3px,color:#fff,padding:25px
+    style End fill:#2e7d32,stroke:#1b5e20,stroke-width:3px,color:#fff,padding:25px
+
+    style Explorer fill:#1e88e5,stroke:#0d47a1,stroke-width:3px,color:#fff,padding:30px
+    style Delegator fill:#f57c00,stroke:#e65100,stroke-width:3px,color:#fff,padding:30px
+    style ParallelExplore fill:#ab47bc,stroke:#6a1b9a,stroke-width:3px,color:#fff,padding:30px
+
+    style E1 fill:#00c853,stroke:#00600d,stroke-width:2px,color:#fff,padding:25px
+    style E2 fill:#00c853,stroke:#00600d,stroke-width:2px,color:#fff,padding:25px
+    style E3 fill:#00c853,stroke:#00600d,stroke-width:2px,color:#fff,padding:25px
+    style EN fill:#00c853,stroke:#00600d,stroke-width:2px,color:#fff,padding:25px
+
+    style Merge1 fill:#ab47bc,stroke:#6a1b9a,stroke-width:3px,color:#fff,padding:30px
+    style DocAgent fill:#1e88e5,stroke:#0d47a1,stroke-width:3px,color:#fff,padding:30px
+    style ParallelSections fill:#ab47bc,stroke:#6a1b9a,stroke-width:3px,color:#fff,padding:30px
+
+    style S1 fill:#d81b60,stroke:#880e4f,stroke-width:2px,color:#fff,padding:25px
+    style S2 fill:#d81b60,stroke:#880e4f,stroke-width:2px,color:#fff,padding:25px
+    style S3 fill:#d81b60,stroke:#880e4f,stroke-width:2px,color:#fff,padding:25px
+
+    style OverviewWriter fill:#f57c00,stroke:#e65100,stroke-width:3px,color:#fff,padding:30px

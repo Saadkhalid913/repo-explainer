@@ -20,6 +20,19 @@ class SkillName(Enum):
     GENERATE_DOCUMENTATION = "generate_documentation.md"
     DOCUMENT_API = "document_api.md"
 
+    # Delegator agent skills
+    ALLOCATE_EXPLORATION_TASKS = "allocate_exploration_tasks.md"
+
+    # Documentation agent enhancements
+    CREATE_TABLE_OF_CONTENTS = "create_table_of_contents.md"
+
+    # Section writer agent skills
+    GENERATE_SECTION_WITH_DIAGRAMS = "generate_section_with_diagrams.md"
+    CREATE_MERMAID_DIAGRAMS = "create_mermaid_diagrams.md"
+
+    # Overview writer agent skills
+    GENERATE_OVERVIEW_INDEX = "generate_overview_index.md"
+
     @property
     def source_path(self) -> Path:
         """Path to the skill definition file."""

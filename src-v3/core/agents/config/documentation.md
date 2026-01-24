@@ -9,6 +9,7 @@ tools:
 skills:
   - generate_documentation
   - document_api
+  - create_table_of_contents
 ---
 
 # Documentation Agent Guidelines
