@@ -1,6 +1,6 @@
 from pathlib import Path
 import json
-from typing import Literal, Dict, Any, Optional, Union
+from typing import Literal, Dict, Any, Optional, Union, TextIO
 from pydantic import BaseModel, Field
 
 from core.agents import OpencodeProjectConfig, AgentType
@@ -59,9 +59,16 @@ wrapper = OpenCodeWrapper(
     project_config=config,
 )
 
+# Open output file for raw JSON events
+output_file = open("output2.txt", "w")
+
 
 def stream_callback(line: str) -> None:
     try:
+        # Always write raw JSON to file
+        output_file.write(line)
+        output_file.flush()
+
         data = json.loads(line)
         event = OpenCodeEvent(**data)
 
@@ -76,8 +83,12 @@ def stream_callback(line: str) -> None:
                 event.part.state and event.part.state.input) else {}
 
             # Subagent Calls (in yellow)
-            if "agent" in tool_name.lower():
-                print(f"\n\033[93m[SUBAGENT CALL] {tool_name}\033[0m")
+            if "agent" in tool_name.lower() or tool_name == "task":
+                display_name = tool_name
+                if tool_name == "task" and "subagent_type" in tool_input:
+                    display_name = f"{tool_name} ({tool_input['subagent_type']})"
+
+                print(f"\n\033[93m[SUBAGENT CALL] {display_name}\033[0m")
                 print(
                     f"\033[93mParams: {json.dumps(tool_input, indent=2)}\033[0m"
                 )
@@ -95,13 +106,20 @@ def stream_callback(line: str) -> None:
 
 
 # Uncomment to run live
-print("Starting execution...\n")
-response = wrapper.execute(
-    prompt="Analyze this repository and provide a comprehensive markdown summary of its structure, then, generate a documentation for the repository, use a subagent for this, and write the summary in a file called docs.md",
-    agent_type=AgentType.EXPLORATION,
-    stream_output=False,
-    stream_callback=stream_callback,
-)
+try:
+    print("Starting execution...\n")
+    print(
+        f"Raw JSON events will be saved to: {Path('output2.txt').resolve()}\n")
+
+    response = wrapper.execute(
+        prompt="Analyze this repository and provide a comprehensive markdown summary of its structure, then, generate a documentation for the repository, use a subagent for this, and write the summary in a file called docs.md",
+        agent_type=AgentType.EXPLORATION,
+        stream_output=False,
+        stream_callback=stream_callback,
+    )
+finally:
+    output_file.close()
+    print(f"\n✓ Raw JSON events saved to output2.txt")
 
 
 # # Parse the output file for testing

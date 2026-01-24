@@ -4,29 +4,20 @@ This is a 1-1 API wrapper for Claude Code CLI, matching the OpenCode wrapper int
 Claude Code is Anthropic's official CLI tool for code analysis.
 """
 
-import shutil
-import subprocess
 import json
+import subprocess
 from pathlib import Path
-from typing import Optional, List, Dict, Any, Callable
+from typing import Optional, List, Dict, Any
 from dataclasses import dataclass, field
 from enum import Enum
 
+from .base_wrapper import BaseWrapper, BaseConfig, OutputFormat
 from .project_config import OpencodeProjectConfig
 
 
-class OutputFormat(Enum):
-    """Claude Code output format."""
-    JSON = "json"
-    TEXT = "text"
-
-
 @dataclass
-class ClaudeCodeConfig:
+class ClaudeCodeConfig(BaseConfig):
     """Configuration for Claude Code instance."""
-
-    binary_path: str = "claude"
-    """Path to claude code binary"""
 
     model: str = "claude-sonnet-4-5-20250929"
     """Model to use for code analysis"""
@@ -34,17 +25,20 @@ class ClaudeCodeConfig:
     output_format: OutputFormat = OutputFormat.JSON
     """Output format (json or text)"""
 
-    timeout: int = 600
-    """Timeout in seconds"""
-
-    verbose: bool = False
-    """Enable verbose output"""
-
     max_tokens: Optional[int] = None
     """Maximum tokens for response"""
 
     temperature: Optional[float] = None
     """Temperature for sampling"""
+
+    binary_path: str = "claude"
+    """Path to claude code binary"""
+
+    timeout: int = 600
+    """Timeout in seconds"""
+
+    verbose: bool = False
+    """Enable verbose output"""
 
 
 @dataclass
@@ -70,7 +64,7 @@ class ClaudeCodeResponse:
     """Additional metadata"""
 
 
-class ClaudeCodeWrapper:
+class ClaudeCodeWrapper(BaseWrapper):
     """
     Wrapper for Claude Code CLI providing high-level interface.
 
@@ -82,6 +76,8 @@ class ClaudeCodeWrapper:
     - Stream events and parse output
     - Handle artifacts
     """
+
+    config: ClaudeCodeConfig  # Override base type annotation
 
     def __init__(
         self,
@@ -97,49 +93,16 @@ class ClaudeCodeWrapper:
             config: Configuration for Claude Code
             project_config: Optional project configuration helpers
         """
-        self.working_dir = Path(working_dir).resolve()
-        self.config = config or ClaudeCodeConfig()
+        config = config or ClaudeCodeConfig()
+        super().__init__(working_dir, config)
+        self.config = config  # Explicitly set with correct type
         self.project_config = project_config or OpencodeProjectConfig.default()
-
-        # Validate working directory
-        if not self.working_dir.exists():
-            raise ValueError(
-                f"Working directory does not exist: {self.working_dir}")
-
-        if not self.working_dir.is_dir():
-            raise ValueError(
-                f"Working directory is not a directory: {self.working_dir}")
-
         self.project_config.apply(self.working_dir)
-
-        # Check Claude Code availability
-        self._check_availability()
-
-    def _check_availability(self) -> None:
-        """Check if Claude Code is available."""
-        try:
-            result = subprocess.run(
-                [self.config.binary_path, "--version"],
-                capture_output=True,
-                text=True,
-                timeout=5,
-            )
-            if result.returncode != 0:
-                raise RuntimeError(
-                    f"Claude Code binary check failed: {result.stderr}")
-        except FileNotFoundError:
-            raise RuntimeError(
-                f"Claude Code binary not found: {self.config.binary_path}. "
-                "Please install Claude Code CLI or set correct binary path."
-            )
-        except subprocess.TimeoutExpired:
-            raise RuntimeError("Claude Code binary check timed out")
 
     def execute(
         self,
         prompt: str,
         context: Optional[str] = None,
-        progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
     ) -> ClaudeCodeResponse:
         """
         Execute a prompt with Claude Code.
@@ -186,8 +149,7 @@ class ClaudeCodeWrapper:
                     error=f"Claude Code failed with code {process.returncode}: {stderr}",
                 )
 
-            # Parse output
-            response = self._parse_output(stdout, progress_callback)
+            response = self._parse_output(stdout)
 
             # Extract artifacts
             response.artifacts = self._extract_artifacts()
@@ -209,23 +171,6 @@ class ClaudeCodeWrapper:
                 error=f"Claude Code execution failed: {str(e)}",
             )
 
-    def _build_prompt(
-        self,
-        prompt: str,
-        context: Optional[str],
-    ) -> str:
-        """Build complete prompt with optional context."""
-        parts = []
-
-        if context:
-            parts.append("# Context\n")
-            parts.append(context)
-            parts.append("")
-
-        parts.append("# Task\n")
-        parts.append(prompt)
-
-        return "\n".join(parts)
 
     def _build_command(self) -> List[str]:
         """Build Claude Code command."""
@@ -243,99 +188,26 @@ class ClaudeCodeWrapper:
 
         return cmd
 
-    def _parse_output(
-        self,
-        output: str,
-        progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
-    ) -> ClaudeCodeResponse:
-        """Parse Claude Code output."""
-        if self.config.output_format == OutputFormat.JSON:
-            return self._parse_json_output(output, progress_callback)
-        else:
-            return ClaudeCodeResponse(
-                success=True,
-                output=output,
-            )
+    def _parse_output(self, output: str) -> ClaudeCodeResponse:
+        """Parse output based on configured format."""
+        if self.config.output_format != OutputFormat.JSON:
+            return ClaudeCodeResponse(success=True, output=output)
+        return self._parse_json_output(output)
 
-    def _parse_json_output(
-        self,
-        output: str,
-        progress_callback: Optional[Callable[[Dict[str, Any]], None]] = None,
-    ) -> ClaudeCodeResponse:
+    def _parse_json_output(self, output: str) -> ClaudeCodeResponse:
         """Parse JSON event stream output."""
         events = []
-        lines = output.strip().split('\n')
-
-        for line in lines:
-            if not line.strip():
-                continue
-
-            try:
-                event = json.loads(line)
-                events.append(event)
-
-                if progress_callback:
-                    progress_callback(event)
-
-            except json.JSONDecodeError:
-                # Skip non-JSON lines
-                continue
-
-        return ClaudeCodeResponse(
-            success=True,
-            output=output,
-            events=events,
-        )
-
-    def _extract_artifacts(self) -> Dict[str, str]:
-        """Extract artifacts from repo_explainer_artifacts directory."""
-        artifacts = {}
-        artifacts_dir = self.working_dir / "repo_explainer_artifacts"
-
-        if not artifacts_dir.exists():
-            return artifacts
-
-        # Recursively find all files
-        for file_path in artifacts_dir.rglob("*"):
-            if file_path.is_file():
-                relative_path = file_path.relative_to(artifacts_dir)
+        for line in output.strip().split('\n'):
+            if line.strip():
                 try:
-                    content = file_path.read_text()
-                    artifacts[str(relative_path)] = content
-                except Exception:
-                    # Skip binary files or unreadable files
+                    events.append(json.loads(line))
+                except json.JSONDecodeError:
                     continue
-
-        return artifacts
-
-    def get_artifact(self, artifact_name: str) -> Optional[str]:
-        """
-        Get a specific artifact by name.
-
-        Args:
-            artifact_name: Name/path of artifact
-
-        Returns:
-            Artifact content or None if not found
-        """
-        artifacts_dir = self.working_dir / "repo_explainer_artifacts"
-        artifact_path = artifacts_dir / artifact_name
-
-        if not artifact_path.exists():
-            return None
-
-        try:
-            return artifact_path.read_text()
-        except Exception:
-            return None
+        return ClaudeCodeResponse(success=True, output=output, events=events)
 
     def cleanup_artifacts(self) -> None:
         """Remove all artifacts from artifacts directory."""
-
-        artifacts_dir = self.working_dir / "repo_explainer_artifacts"
-        if artifacts_dir.exists():
-            shutil.rmtree(artifacts_dir)
-
+        super().cleanup_artifacts()
         self.project_config.cleanup(self.working_dir)
 
     def __repr__(self) -> str:

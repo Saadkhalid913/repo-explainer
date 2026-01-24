@@ -56,7 +56,7 @@ class OpencodeProjectConfig:
     """
 
     enabled_agents: Set[AgentType] = field(
-        default_factory=lambda: set(AgentType))
+        default_factory=lambda: {*AgentType})
     """Which agents to write to the workspace. Defaults to ALL agents."""
 
     # Internal caches (populated on init)
