@@ -20,6 +20,7 @@ class AgentType(Enum):
     DELEGATOR = "delegator"
     SECTION_WRITER = "section_writer"
     OVERVIEW_WRITER = "overview_writer"
+    STRUCTURE_PLANNER = "structure_planner"
 
     @property
     def filename(self) -> str:

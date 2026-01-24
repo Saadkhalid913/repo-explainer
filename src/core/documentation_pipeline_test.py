@@ -146,8 +146,8 @@ class TestOpencodeProjectConfig(unittest.TestCase):
         config = OpencodeProjectConfig.default()
         config.apply(self.test_dir)
 
-        # Verify directories created
-        agents_dir = self.test_dir / ".opencode/agents"
+        # Verify directories created (note: .opencode/agent is singular)
+        agents_dir = self.test_dir / ".opencode/agent"
         self.assertTrue(agents_dir.exists())
 
         # Verify all agent files exist
@@ -180,8 +180,8 @@ class TestOpencodeProjectConfig(unittest.TestCase):
         config = OpencodeProjectConfig.default()
         config.apply(self.test_dir)
 
-        # Verify files exist
-        agents_dir = self.test_dir / ".opencode/agents"
+        # Verify files exist (note: .opencode/agent is singular)
+        agents_dir = self.test_dir / ".opencode/agent"
         skills_dir = self.test_dir / ".opencode/skills"
         self.assertTrue(agents_dir.exists())
         self.assertTrue(skills_dir.exists())
@@ -190,7 +190,7 @@ class TestOpencodeProjectConfig(unittest.TestCase):
         config.cleanup(self.test_dir)
 
         # Verify key files/directories removed (even if parent dir remains)
-        self.assertFalse(agents_dir.exists(), "Agents directory should be removed")
+        self.assertFalse(agents_dir.exists(), "Agent directory should be removed")
         self.assertFalse(skills_dir.exists(), "Skills directory should be removed")
         self.assertFalse((self.test_dir / "AGENTS.md").exists(), "AGENTS.md should be removed")
 
@@ -222,9 +222,8 @@ class TestDocumentationPipelineStructure(unittest.TestCase):
 
         # Verify directories created
         self.assertTrue(pipeline.planning_dir.exists())
-        self.assertTrue(pipeline.docs_dir.exists())
         self.assertTrue(pipeline.component_docs_dir.exists())
-        self.assertTrue(pipeline.documentation_dir.exists())
+        self.assertTrue(pipeline.assets_dir.exists())
 
         # Verify wrapper created
         self.assertIsNotNone(pipeline.wrapper)
@@ -237,8 +236,7 @@ class TestDocumentationPipelineStructure(unittest.TestCase):
         expected_structure = {
             "planning": self.test_dir / "planning",
             "planning/docs": self.test_dir / "planning/docs",
-            "planning/documentation": self.test_dir / "planning/documentation",
-            "docs": self.test_dir / "docs",
+            "planning/assets": self.test_dir / "planning/assets",
         }
 
         for name, path in expected_structure.items():

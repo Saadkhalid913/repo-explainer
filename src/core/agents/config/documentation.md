@@ -56,13 +56,15 @@ Task tool call:
 
 ## Section Organization
 
-Group components into sections like:
-- **architecture**: Core design, system architecture, data flow
-- **control-plane**: API server, scheduler, controller manager
-- **node-components**: Kubelet, kube-proxy, container runtime
-- **client-libraries**: client-go, kubectl, API machinery
-- **storage**: Volume plugins, CSI, persistent volumes
-- **networking**: CNI, services, ingress
+Group the components you find into logical sections based on their actual functionality.
+Examples of section types (use what makes sense for THIS repository):
+- **core**: Main functionality and business logic
+- **api**: API endpoints and interfaces
+- **utils**: Helper functions and utilities
+- **config**: Configuration management
+- **services**: Background services or workers
+
+**IMPORTANT**: Base sections on ACTUAL components found in the repo, not example names.
 
 ## Quality Checking
 

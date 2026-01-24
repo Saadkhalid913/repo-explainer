@@ -27,8 +27,9 @@ from core.utils.clone_repo import clone_repo, is_github_url
 
 def copy_output_to_dist(
     repo_name: str,
-    build_docs_dir: Path,
-    html_site_dir: Path,
+    docs_raw_dir: Path | None,
+    docs_rendered_dir: Path | None,
+    html_site_dir: Path | None,
     tui: RichTUI,
 ) -> Path:
     """
@@ -36,7 +37,8 @@ def copy_output_to_dist(
 
     Args:
         repo_name: Name of the repository (used for folder naming)
-        build_docs_dir: Path to processed markdown docs (build/docs/)
+        docs_raw_dir: Path to unprocessed markdown docs (build/docs_raw/)
+        docs_rendered_dir: Path to processed markdown docs (build/docs/)
         html_site_dir: Path to HTML site (build/site/)
         tui: TUI instance for logging progress
 
@@ -45,6 +47,7 @@ def copy_output_to_dist(
     """
     # Create dist folder in current working directory
     dist_dir = Path.cwd() / "dist" / repo_name
+    dist_docs_raw = dist_dir / "markdown_raw"
     dist_docs = dist_dir / "markdown"
     dist_site = dist_dir / "site"
 
@@ -56,10 +59,15 @@ def copy_output_to_dist(
 
     dist_dir.mkdir(parents=True, exist_ok=True)
 
-    # Copy markdown docs
-    if build_docs_dir and build_docs_dir.exists():
-        shutil.copytree(build_docs_dir, dist_docs)
-        tui.log_message("DIST", f"Markdown docs: {dist_docs}", "green", "bold green")
+    # Copy raw markdown docs (unrendered mermaid)
+    if docs_raw_dir and docs_raw_dir.exists():
+        shutil.copytree(docs_raw_dir, dist_docs_raw)
+        tui.log_message("DIST", f"Raw markdown: {dist_docs_raw}", "green", "bold green")
+
+    # Copy rendered markdown docs
+    if docs_rendered_dir and docs_rendered_dir.exists():
+        shutil.copytree(docs_rendered_dir, dist_docs)
+        tui.log_message("DIST", f"Rendered docs: {dist_docs}", "green", "bold green")
 
     # Copy HTML site
     if html_site_dir and html_site_dir.exists():
@@ -227,12 +235,14 @@ Examples:
                 tui.log_post_process(post_process)
 
                 # Copy output to dist/ folder in current working directory
-                build_docs = post_process.get("build_dir")
+                docs_raw = post_process.get("docs_raw_dir")
+                docs_rendered = post_process.get("docs_rendered_dir")
                 html_site = post_process.get("html_output_dir")
-                if build_docs or html_site:
+                if docs_raw or docs_rendered or html_site:
                     dist_dir = copy_output_to_dist(
                         repo_name=repo_name,
-                        build_docs_dir=Path(build_docs) / "docs" if build_docs else None,
+                        docs_raw_dir=Path(docs_raw) if docs_raw else None,
+                        docs_rendered_dir=Path(docs_rendered) if docs_rendered else None,
                         html_site_dir=Path(html_site) if html_site else None,
                         tui=tui,
                     )

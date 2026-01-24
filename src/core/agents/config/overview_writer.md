@@ -61,52 +61,42 @@ All output stays in the `planning/` directory.
 
 ## Output Structure
 
-Generate `planning/index.md` with this structure:
+Generate `planning/index.md` with this structure.
+**IMPORTANT**: Use the ACTUAL component names from `planning/docs/` - not example names!
 
 ```markdown
 # {Repository Name} Documentation
 
 ## Overview
 
-{2-3 paragraph description of the repository}
+{2-3 paragraph description from planning/overview.md}
 
 **Key Features:**
-- Feature 1
-- Feature 2
-- Feature 3
+- {Actual feature 1 from the repo}
+- {Actual feature 2 from the repo}
 
-**Tech Stack:** {Primary technologies used}
+**Tech Stack:** {Technologies found in the repo}
 
 ## Quick Start
 
 New to this project? Start here:
 
-1. [API Server](docs/api-server/index.md) - Core API component
-2. [Scheduler](docs/scheduler/index.md) - Resource scheduling
-3. [Kubelet](docs/kubelet/index.md) - Node agent
+1. [{Actual Component 1}](docs/{component-1}/index.md) - {What it does}
+2. [{Actual Component 2}](docs/{component-2}/index.md) - {What it does}
 
 ## Component Documentation
 
-### Control Plane
+{List ALL components from planning/docs/ with links}
 
-- [API Server](docs/api-server/index.md) - {Brief description}
-- [Scheduler](docs/scheduler/index.md) - {Brief description}
-- [Controller Manager](docs/controller-manager/index.md) - {Brief description}
-
-### Node Components
-
-- [Kubelet](docs/kubelet/index.md) - {Brief description}
-- [Kube-proxy](docs/kube-proxy/index.md) - {Brief description}
-
-### Libraries & Tools
-
-- [Client-go](docs/client-go/index.md) - {Brief description}
-- [Kubectl](docs/kubectl/index.md) - {Brief description}
+- [{Component Name}](docs/{component-id}/index.md) - {Brief description}
+- ...
 
 ---
 
 *Documentation generated on {date}*
 ```
+
+**CRITICAL**: Read `planning/docs/*/` to get the ACTUAL component names. Do not use placeholder or example names from other projects!
 
 **Note**: All links are relative to `planning/` (e.g., `docs/component/index.md` means `planning/docs/component/index.md`).
 

@@ -17,7 +17,7 @@ from pathlib import Path
 from threading import Thread
 from typing import Callable, Optional, TextIO
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 from rich.console import Console
 from rich.layout import Layout
 from rich.live import Live
@@ -337,6 +337,23 @@ class RichTUI:
                     return entry
             return None
 
+        except ValidationError:
+            # Could be a custom pipeline message (not OpenCodeEvent format)
+            try:
+                data = json.loads(line)
+                if data.get("type") == "message" and data.get("content"):
+                    entry = Text()
+                    entry.append(f"[{datetime.now().strftime('%H:%M:%S')}] ", style="dim")
+                    entry.append("WAIT      ", style="bold cyan")
+                    content = data["content"]
+                    if len(content) > 50:
+                        content = content[:47] + "..."
+                    entry.append(content, style="cyan")
+                    return entry
+            except:
+                pass
+            return None
+
         except Exception as e:
             if self.verbose:
                 entry = Text()
@@ -572,17 +589,31 @@ class RichTUI:
                     "red", "bold red"
                 )
 
+        # Log markdown fixes
+        markdown_fixes = result.get("markdown_issues_fixed", 0)
+        if markdown_fixes > 0:
+            self.log_message("MARKDOWN", f"Fixed {markdown_fixes} markdown issues", "cyan", "bold cyan")
+
         # Log link fixing
         links_fixed = result.get("github_links_fixed", 0)
         if links_fixed > 0:
             self.log_message("LINKS", f"Fixed {links_fixed} GitHub links", "cyan", "bold cyan")
+
+        # Log validation errors (unrendered mermaid blocks)
+        validation_errors = result.get("validation_errors", [])
+        if validation_errors:
+            self.log_message(
+                "VALIDATE",
+                f"{len(validation_errors)} unrendered mermaid blocks detected",
+                "yellow", "bold yellow"
+            )
 
         # Log HTML site
         html_dir = result.get("html_output_dir")
         if html_dir:
             from pathlib import Path
             if Path(html_dir).exists() and any(Path(html_dir).iterdir()):
-                self.log_message("HTML", f"Site built: {html_dir}", "green", "bold green")
+                self.log_message("HTML", f"Site built successfully", "green", "bold green")
             else:
                 self.log_message("HTML", "Site directory empty (mkdocs failed?)", "red", "bold red")
         else:

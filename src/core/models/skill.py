@@ -23,6 +23,9 @@ class SkillName(Enum):
     # Delegator agent skills
     ALLOCATE_EXPLORATION_TASKS = "allocate_exploration_tasks.md"
 
+    # Structure planner agent skills
+    PLAN_DOC_STRUCTURE = "plan_doc_structure.md"
+
     # Documentation agent enhancements
     CREATE_TABLE_OF_CONTENTS = "create_table_of_contents.md"
 

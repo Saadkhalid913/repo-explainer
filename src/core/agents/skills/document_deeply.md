@@ -50,7 +50,7 @@ Create minimum 3 files per component:
 2. architecture.md - diagrams + technical details
 3. api_reference.md - complete API docs + examples
 
-For components with 10+ sub-elements (e.g., controller-manager with 28 controllers):
+For components with 10+ sub-elements:
 4. subcomponents/ directory with individual .md files
 
 ## Quality Criteria

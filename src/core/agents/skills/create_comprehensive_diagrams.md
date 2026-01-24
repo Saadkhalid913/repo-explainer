@@ -28,10 +28,10 @@ flowchart LR
 Show interactions over time:
 ```mermaid
 sequenceDiagram
-    Client->>APIServer: Create Pod
-    APIServer->>Scheduler: Schedule
-    Scheduler->>Kubelet: Assign
-    Kubelet-->>Client: Pod Running
+    Client->>Server: Request
+    Server->>Service: Process
+    Service->>Database: Query
+    Database-->>Client: Response
 ```
 
 ### 4. Component Diagrams (Mermaid graph)

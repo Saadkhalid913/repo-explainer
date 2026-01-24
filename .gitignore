@@ -48,11 +48,12 @@ diagrams/
 test-output/
 generated-docs/
 
-# OpenCode artifacts (should be in docs/ not root)
-/architecture.md
-/components.mermaid
-/dataflow.mermaid
-/tech-stack.txt
+# Log files
+*.log
+*.log.txt
+
+# OpenCode artifacts
+.opencode/
 
 # Cloned repositories
 tmp/

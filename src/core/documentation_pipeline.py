@@ -14,8 +14,11 @@ The agents communicate via file-based protocol using structured directories.
 """
 
 from pathlib import Path
-from typing import Optional, Callable
+from typing import Optional, Callable, Dict, Any
 import logging
+import time
+import re
+import json
 
 from .agents import (
     OpenCodeWrapper,
@@ -75,6 +78,51 @@ class DocumentationPipeline:
 
         logger.info(f"Pipeline initialized for repository: {self.repo_path}")
 
+    def _log(self, message: str) -> None:
+        """Log to both logger and TUI callback."""
+        logger.info(message)
+        if self.stream_callback:
+            self.stream_callback(json.dumps({"type": "message", "content": message}))
+
+    def _execute_with_retry(
+        self,
+        prompt: str,
+        agent_type: AgentType,
+        expected_files: list[Path],
+        max_retries: int = 1
+    ) -> Dict[str, Any]:
+        """Execute agent with retry on failure. Validates expected output files exist."""
+        for attempt in range(max_retries + 1):
+            try:
+                response = self.wrapper.execute(
+                    prompt=prompt,
+                    agent_type=agent_type,
+                    stream_output=False,
+                    stream_callback=self.stream_callback
+                )
+
+                # Check expected files exist
+                missing = [f for f in expected_files if not f.exists()]
+                if not missing:
+                    return {"success": True, "output": str(response)[:200]}
+
+                self._log(f"  ⚠ Attempt {attempt+1}: Missing files: {[f.name for f in missing]}")
+
+            except Exception as e:
+                self._log(f"  ⚠ Attempt {attempt+1} failed: {e}")
+
+            if attempt < max_retries:
+                self._log(f"  → Retrying in 3s...")
+                time.sleep(3)
+
+        # Return partial success if some files exist
+        existing = [f for f in expected_files if f.exists()]
+        return {
+            "success": len(existing) > 0,
+            "output": f"Partial: {len(existing)}/{len(expected_files)} files created",
+            "missing": [str(f) for f in expected_files if not f.exists()]
+        }
+
     def run(self) -> dict:
         """
         Execute the full documentation pipeline.
@@ -101,24 +149,32 @@ class DocumentationPipeline:
                 self.planning_dir / "overview.md"
             )
 
-            # Step 2: Delegator Agent - Allocate component exploration tasks
+            # Step 2: Delegator Agent - Create manifest and allocate tasks
             logger.info("Step 2: Allocating component exploration tasks...")
             step2_result = self._step_2_delegate_tasks()
             results["steps"]["delegate"] = step2_result
+
+            # Validate delegator output before proceeding
+            manifest_path = self.planning_dir / "component_manifest.md"
+            if not manifest_path.exists():
+                raise RuntimeError("Delegator failed to create component_manifest.md")
             results["output_paths"]["task_allocation"] = str(
                 self.planning_dir / "task_allocation.md"
             )
 
-            # Step 3: Multiple Explorer Subagents (spawned by delegator)
-            # These run automatically via subagent calls within step 2
-            logger.info(
-                "Step 3: Component exploration (parallel subagents)...")
-            logger.info("  → Subagents spawned by delegator agent")
+            # Step 2.5: Generate doc_tree.json from manifest
+            logger.info("Step 2.5: Generating documentation structure...")
+            step2_5_result = self._generate_doc_tree_from_manifest()
+            results["steps"]["structure_plan"] = step2_5_result
+            results["output_paths"]["doc_tree"] = str(self.planning_dir / "doc_tree.json")
 
-            # CRITICAL: Wait for subagents to complete
-            # The delegator spawns async subagents - we must wait for them
-            logger.info("  → Waiting for exploration subagents to complete...")
-            self._wait_for_exploration_subagents()
+            # Step 3: Wait for subagents with early failure detection
+            logger.info("Step 3: Waiting for exploration subagents...")
+            wait_result = self._wait_for_exploration_subagents()
+            results["steps"]["subagent_wait"] = wait_result
+
+            if not wait_result.get("success") and wait_result.get("reason") == "no_subagent_output":
+                raise RuntimeError("Delegator did not spawn subagents - check delegator prompt")
 
             # Step 4: Generate component docs index (title page)
             logger.info("Step 4: Generating component documentation index...")
@@ -190,24 +246,166 @@ Write your findings to `planning/overview.md` using the Write tool:
 - Major components identified (8-15 for large projects)
 - Architectural patterns observed
 
-**Depth Requirement**: Enumerate all major components explicitly.
-For Kubernetes: apiserver, scheduler, controller-manager, kubelet, kube-proxy,
-client-go, kubectl, etc.
+**Depth Requirement**: Enumerate all major components explicitly based on what you find.
+Identify the actual components in THIS repository - do not use examples from other projects.
 
 **IMPORTANT**: You MUST write `planning/overview.md` before finishing!
 Use the Write tool, not bash echo commands.
 """
-
-        response = self.wrapper.execute(
+        return self._execute_with_retry(
             prompt=prompt,
             agent_type=AgentType.EXPLORATION,
-            stream_output=False,
-            stream_callback=self.stream_callback
+            expected_files=[self.planning_dir / "overview.md"],
+            max_retries=1
         )
 
+    def _step_1_5_plan_structure(self) -> dict:
+        """
+        Step 1.5: Generate documentation structure plan (doc_tree.json).
+
+        This step creates a JSON file that defines:
+        - All documentation files that will be created
+        - Exact titles for navigation sidebar
+        - Exact headings for each page
+        - Navigation ordering
+
+        This ensures all subsequent documentation agents use consistent
+        titles, headings, and cross-link paths.
+
+        Returns:
+            dict: Step execution result
+        """
+        # First, try to generate doc_tree.json using the Structure Planner agent
+        prompt = """Generate the documentation structure plan.
+
+Your task:
+1. Read `planning/overview.md` to understand the repository
+2. Read `planning/component_manifest.md` to get the component list
+3. Generate `planning/doc_tree.json` with the complete documentation structure
+
+The doc_tree.json MUST include:
+- Every documentation file that will be created
+- Exact `title` for each file (for sidebar navigation, max 25 chars)
+- Exact `heading` for each file (the H1 at top of page)
+- `nav_order` for sidebar ordering
+
+Follow the schema from your plan_doc_structure skill.
+
+**CRITICAL**:
+- Titles must be clean noun phrases (e.g., "WebSearch Tool")
+- NEVER use code, paths, or sentences as titles
+- Use kebab-case for directory names
+- Every directory must have an index.md
+
+Write the JSON to `planning/doc_tree.json` using the Write tool.
+"""
+
+        try:
+            response = self.wrapper.execute(
+                prompt=prompt,
+                agent_type=AgentType.STRUCTURE_PLANNER,
+                stream_output=False,
+                stream_callback=self.stream_callback
+            )
+
+            # Verify doc_tree.json was created
+            doc_tree_path = self.planning_dir / "doc_tree.json"
+            if doc_tree_path.exists():
+                logger.info("  → doc_tree.json created successfully")
+                return {
+                    "success": True,
+                    "output": str(response)[:200],
+                    "doc_tree_path": str(doc_tree_path)
+                }
+            else:
+                # Fall back to Python-generated structure
+                logger.warning("  → Agent didn't create doc_tree.json, generating from manifest")
+                return self._generate_doc_tree_from_manifest()
+
+        except Exception as e:
+            logger.warning(f"  → Structure planner failed: {e}, falling back to Python generation")
+            return self._generate_doc_tree_from_manifest()
+
+    def _generate_doc_tree_from_manifest(self) -> dict:
+        """
+        Fallback: Generate doc_tree.json from component_manifest.md using Python.
+
+        This provides deterministic control over the structure if the agent
+        fails to generate valid JSON.
+
+        Returns:
+            dict: Step execution result
+        """
+        import json
+        import re
+        from datetime import datetime
+
+        manifest_path = self.planning_dir / "component_manifest.md"
+
+        # Parse component manifest
+        components = []
+        if manifest_path.exists():
+            content = manifest_path.read_text()
+            # Look for table rows: | component-id | Display Name | path |
+            for line in content.split('\n'):
+                if '|' in line and not line.strip().startswith('|--'):
+                    parts = [p.strip() for p in line.split('|')]
+                    if len(parts) >= 4 and parts[1] and parts[1] != 'Component ID':
+                        components.append({
+                            'id': parts[1],
+                            'name': parts[2],
+                            'path': parts[3] if len(parts) > 3 else f"docs/{parts[1]}/"
+                        })
+
+        # Build the doc tree structure
+        repo_name = self.repo_path.name
+        tree = {
+            "repository": repo_name,
+            "title": f"{repo_name.replace('-', ' ').replace('_', ' ').title()} Documentation",
+            "generated_at": datetime.utcnow().isoformat() + "Z",
+            "structure": {
+                "index.md": {
+                    "title": "Home",
+                    "heading": f"{repo_name.replace('-', ' ').replace('_', ' ').title()} Documentation",
+                    "description": "Main documentation landing page",
+                    "nav_order": 1
+                }
+            }
+        }
+
+        # Add component entries
+        for i, comp in enumerate(components, start=1):
+            comp_id = comp['id']
+            comp_name = comp['name']
+
+            # Create clean title (max 25 chars)
+            title = comp_name if len(comp_name) <= 25 else comp_name[:22] + "..."
+
+            tree["structure"][f"{comp_id}/"] = {
+                "index.md": {
+                    "title": title,
+                    "heading": comp_name,
+                    "description": f"Documentation for {comp_name}",
+                    "nav_order": i
+                },
+                "architecture.md": {
+                    "title": "Architecture",
+                    "heading": f"{comp_name} Architecture",
+                    "nav_order": 2
+                }
+            }
+
+        # Write the doc tree
+        doc_tree_path = self.planning_dir / "doc_tree.json"
+        doc_tree_path.write_text(json.dumps(tree, indent=2))
+
+        logger.info(f"  → Generated doc_tree.json with {len(components)} components")
+
         return {
-            "success": response.success if hasattr(response, 'success') else True,
-            "output": str(response)[:200]  # First 200 chars
+            "success": True,
+            "output": f"Generated doc_tree.json from manifest ({len(components)} components)",
+            "doc_tree_path": str(doc_tree_path),
+            "fallback": True
         }
 
     def _step_2_delegate_tasks(self) -> dict:
@@ -232,29 +430,25 @@ Your task:
 Create `planning/component_manifest.md` with a table of ALL components you will document.
 This prevents dead links when components reference each other.
 
-Example:
+Example format (use actual components from THIS repository):
 ```markdown
 # Component Manifest
 
 | Component ID | Display Name | Output Path |
 |-------------|--------------|-------------|
-| api-server | API Server | docs/api-server/ |
-| scheduler | Scheduler | docs/scheduler/ |
-| controller-manager | Controller Manager | docs/controller-manager/ |
+| component-a | Component A | docs/component-a/ |
+| component-b | Component B | docs/component-b/ |
+| component-c | Component C | docs/component-c/ |
 ```
 
 ## STEP 2: Identify Components
 
 1. Read `planning/overview.md` to understand the repository structure
-2. Identify **8-15 major components** that should be explored in detail
-   - For large projects like Kubernetes, identify ALL major subsystems:
-     - Control plane: apiserver, scheduler, controller-manager, etcd integration
-     - Node components: kubelet, kube-proxy
-     - Client libraries: client-go, kubectl, API machinery
-     - Storage: volume plugins, CSI drivers
-     - Networking: CNI, services, ingress
-     - Security: auth, admission controllers
-   - **DO NOT under-identify components!**
+2. Identify the major components **that actually exist in THIS repository**
+   - Base the count on repository size: 3-5 for small repos, 8-15 for large repos
+   - Look at the actual directory structure and code organization
+   - **ONLY document components that exist in the repo you are analyzing**
+   - **DO NOT use example components from other projects!**
 
 ## STEP 3: Create Task Allocation
 
@@ -316,162 +510,63 @@ task allocation file - actually spawn the Task tool calls to create the subagent
             "output": str(response)[:200]
         }
 
-    def _step_4_create_toc(self) -> dict:
-        """
-        Step 4: Use Documentation agent to create table of contents AND spawn section writers.
-
-        The documentation agent will:
-        - Read all component docs from planning/docs/*/
-        - Group components into logical documentation sections
-        - Create planning/documentation/toc.json
-        - SPAWN section writer agents for each section
-
-        Returns:
-            dict: Step execution result
-        """
-        prompt = """Create a table of contents from component documentation and spawn section writers.
-
-## Task 1: Create TOC
-
-1. Read all component documentation from `planning/docs/*/`
-2. Analyze the content and identify common themes/topics
-3. Group components into 4-8 logical documentation sections:
-   - control-plane (API server, scheduler, controller-manager)
-   - node-components (kubelet, kube-proxy)
-   - client-libraries (client-go, kubectl)
-   - storage (volume plugins, CSI)
-   - networking (CNI, services)
-   - etc.
-4. Create `planning/documentation/toc.json` with:
-   - Section names, titles, descriptions
-   - Component assignments to sections
-   - File paths for each section
-   - Priority ordering
-
-## Task 2: SPAWN Section Writers (CRITICAL!)
-
-After creating the TOC, you MUST spawn section writer agents using the Task tool:
-
-For EACH section in your TOC, spawn a section_writer agent:
-
-```
-Task tool call:
-  subagent_type: "section_writer"
-  description: "Write {section_name} documentation"
-  prompt: "Create final documentation for the {section_name} section.
-
-  Read these component docs: {list of planning/docs/component paths}
-
-  Create: docs/{section_name}/index.md
-
-  Requirements:
-  1. Create section directory: docs/{section_name}/
-  2. Write mermaid diagrams to: docs/assets/{section_name}_*.mmd
-  3. Compile diagrams: mmdc -i docs/assets/{name}.mmd -o docs/assets/{name}.png -t dark -b transparent
-  4. Reference diagrams as: ![Title](../assets/{name}.png)
-  5. Create comprehensive index.md (200+ lines)
-  6. Include links between sections
-  "
-```
-
-**YOU MUST SPAWN SECTION WRITERS - DO NOT SKIP THIS STEP!**
-
-The section writers will:
-- Read component docs from planning/docs/
-- Compile mermaid diagrams to PNG
-- Create final docs in docs/{section}/index.md
-"""
-
-        response = self.wrapper.execute(
-            prompt=prompt,
-            agent_type=AgentType.DOCUMENTATION,
-            stream_output=False,
-            stream_callback=self.stream_callback
-        )
-
-        return {
-            "success": response.success if hasattr(response, 'success') else True,
-            "output": str(response)[:200]
-        }
-
-    def _wait_for_exploration_subagents(self, timeout: int = 600, poll_interval: int = 10) -> None:
-        """
-        Wait for exploration subagents to complete by monitoring planning/docs/.
-
-        This is necessary because when the delegator spawns subagents, they run
-        asynchronously. The delegator returns immediately, but subagents continue
-        running in the background.
-
-        Strategy:
-        1. Read task_allocation.md to get expected component count
-        2. Poll planning/docs/ until we have that many directories
-        3. Also check that files are being written (activity detection)
-        """
-        import time
-        import re
+    def _wait_for_exploration_subagents(self, timeout: int = 600, poll_interval: int = 10) -> dict:
+        """Wait for subagents with early failure detection."""
+        EARLY_FAIL_THRESHOLD = 45  # Fail fast if 0 output after 45s
 
         task_file = self.planning_dir / "task_allocation.md"
-        expected_count = 8  # Default minimum
+        expected_count = 3  # Conservative default
 
-        # Try to read expected count from task_allocation.md
         if task_file.exists():
             content = task_file.read_text()
-            # Look for YAML frontmatter with total_tasks
             match = re.search(r'total_tasks:\s*(\d+)', content)
             if match:
                 expected_count = int(match.group(1))
             else:
-                # Count task headers like "## Task N:"
-                task_matches = re.findall(r'##\s+Task\s+\d+', content)
-                if task_matches:
-                    expected_count = len(task_matches)
+                expected_count = len(re.findall(r'##\s+Task\s+\d+', content)) or 3
 
-        logger.info(f"  → Expecting {expected_count} component directories")
+        self._log(f"Expecting {expected_count} component directories")
 
         start_time = time.time()
-        last_count = 0
-        last_file_count = 0
-        stable_iterations = 0
+        last_count, last_file_count, stable_iterations = 0, 0, 0
 
         while time.time() - start_time < timeout:
-            # Count directories and files in planning/docs/
+            current_count, file_count = 0, 0
             if self.component_docs_dir.exists():
                 dirs = [d for d in self.component_docs_dir.iterdir() if d.is_dir()]
                 current_count = len(dirs)
-                # Count total files for activity detection
                 file_count = sum(1 for d in dirs for f in d.iterdir() if f.is_file())
-            else:
-                current_count = 0
-                file_count = 0
 
-            # Check if we have enough and count is stable
+            elapsed = int(time.time() - start_time)
+
+            # SUCCESS: Got all expected components
             if current_count >= expected_count:
-                logger.info(f"  → All {current_count} components documented ({file_count} files)")
-                return
+                self._log(f"✓ All {current_count} components documented ({file_count} files)")
+                return {"success": True, "components": current_count, "files": file_count}
 
-            # Detect activity - if count or files changed, reset stability counter
+            # EARLY FAIL: No output after threshold - delegator likely didn't spawn subagents
+            if elapsed > EARLY_FAIL_THRESHOLD and current_count == 0:
+                self._log(f"✗ No subagent output after {elapsed}s - delegator may have failed to spawn")
+                return {"success": False, "reason": "no_subagent_output", "components": 0}
+
+            # Activity detection
             if current_count != last_count or file_count != last_file_count:
-                elapsed = int(time.time() - start_time)
-                dir_names = [d.name for d in dirs] if dirs else []
-                logger.info(f"  → [{elapsed}s] Progress: {current_count}/{expected_count} components, {file_count} files")
-                if dir_names:
-                    logger.info(f"  → Components: {', '.join(sorted(dir_names)[:5])}{'...' if len(dir_names) > 5 else ''}")
-                last_count = current_count
-                last_file_count = file_count
-                stable_iterations = 0
+                self._log(f"[{elapsed}s] Progress: {current_count}/{expected_count} components, {file_count} files")
+                last_count, last_file_count, stable_iterations = current_count, file_count, 0
             else:
                 stable_iterations += 1
+                if stable_iterations % 3 == 0:
+                    self._log(f"[{elapsed}s] Waiting... ({current_count}/{expected_count})")
 
-            # If stable for 6 iterations (60 seconds) and we have some docs, proceed
-            # (some subagents may have failed or be stuck)
-            if stable_iterations >= 6 and current_count >= 3:
-                elapsed = int(time.time() - start_time)
-                logger.info(f"  → [{elapsed}s] No new activity for 60s, proceeding with {current_count} components")
-                return
+            # EARLY EXIT: No activity for 60s but have some output
+            if stable_iterations >= 6 and current_count >= 1:
+                self._log(f"[{elapsed}s] No activity for 60s, proceeding with {current_count} components")
+                return {"success": True, "components": current_count, "partial": True}
 
             time.sleep(poll_interval)
 
-        logger.warning(f"  → Timeout after {timeout}s. Have {last_count}/{expected_count} components")
+        self._log(f"Timeout after {timeout}s. Have {last_count}/{expected_count} components")
+        return {"success": last_count > 0, "components": last_count, "timeout": True}
 
     def _step_4_generate_docs_index(self) -> dict:
         """
@@ -593,32 +688,24 @@ Your task:
 **CRITICAL**: You MUST create the file `planning/index.md` using the Write tool.
 This is the main entry point for all documentation.
 
-Example structure:
+Example structure (use the actual repository name and components you found):
 ```markdown
-# Kubernetes Documentation
+# {Repository Name} Documentation
 
 ## Overview
-Kubernetes is a container orchestration platform...
+{Brief description from planning/overview.md}
 
 ## Quick Start
-- [API Server](docs/api-server/index.md)
-- [Kubelet](docs/kubelet/index.md)
-- [Client-Go](docs/client-go/index.md)
+- [Component A](docs/component-a/index.md)
+- [Component B](docs/component-b/index.md)
 
 ## Documentation Index
-
-### Control Plane
-- [API Server](docs/api-server/index.md) - REST API
-- [Scheduler](docs/scheduler/index.md) - Pod scheduling
-- [Controller Manager](docs/controller-manager/index.md) - Controllers
-
-### Node Components
-- [Kubelet](docs/kubelet/index.md) - Node agent
-- [Kube-proxy](docs/kube-proxy/index.md) - Network proxy
+{List ALL components from planning/docs/ with links}
 ```
 
 Make the index welcoming, scannable, and easy to navigate.
 All links should be relative to planning/ (e.g., docs/component/index.md).
+**Use the ACTUAL component names from the docs you read, not example names.**
 """
 
         response = self.wrapper.execute(
@@ -671,12 +758,16 @@ All links should be relative to planning/ (e.g., docs/component/index.md).
             "success": result.success,
             "source_dir": str(result.source_dir) if result.source_dir else None,
             "build_dir": str(result.build_dir) if result.build_dir else None,
+            "docs_raw_dir": str(result.docs_raw_dir) if result.docs_raw_dir else None,
+            "docs_rendered_dir": str(result.docs_rendered_dir) if result.docs_rendered_dir else None,
             "html_output_dir": str(result.html_output_dir) if result.html_output_dir else None,
             "files_processed": result.files_processed,
             "diagrams_found": result.diagrams_found,
             "diagrams_rendered": result.diagrams_rendered,
             "diagrams_failed": result.diagrams_failed,
             "github_links_fixed": result.github_links_fixed,
+            "markdown_issues_fixed": result.markdown_issues_fixed,
+            "validation_errors": [str(e) for e in result.validation_errors],
             "errors": result.errors
         }
 

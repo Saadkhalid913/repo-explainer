@@ -39,8 +39,8 @@ These can return thousands of files and overflow the context window.
 
 **SAFE patterns**:
 - `*/` - top-level directories only
-- `cmd/*/` - second-level in cmd
-- `cmd/kube-apiserver/*` - specific component
+- `src/*/` - second-level in src
+- `{specific_dir}/*` - specific component directory
 - Use `ls -la` for quick directory listing
 
 ## Focus Areas
@@ -69,17 +69,51 @@ When documenting components, use `index.md` as the standard entry point file nam
 
 This standardization ensures consistent navigation across all documentation.
 
+## Heading Requirements (CRITICAL!)
+
+When creating documentation files, ALWAYS check `planning/doc_tree.json` first!
+
+The doc_tree.json file contains:
+1. Your file's assigned **heading** (use exactly as specified for the H1)
+2. Your file's assigned **title** (for any self-references)
+3. Valid cross-link paths (only link to files in the tree)
+
+**RULES**:
+- Use the EXACT heading from doc_tree.json as your H1 (`# Heading`)
+- NEVER use code snippets as headings
+- NEVER use descriptions as headings (e.g., "Assuming you have...")
+- NEVER use file paths as headings
+- Headings should be clear noun phrases
+
+**BAD headings** (never do this):
+```markdown
+# Assuming you have custom config at ~/.config/myapp
+# src/api/handlers.go
+# func handleRequest(w http.ResponseWriter, r *http.Request)
+# This service handles authentication for all users
+```
+
+**GOOD headings** (always do this):
+```markdown
+# WebSearch Tool
+# Authentication Service
+# API Gateway Architecture
+# Configuration Guide
+```
+
 ## Cross-Linking (IMPORTANT - Avoid Dead Links!)
 
-**Before creating links to other components**, read `planning/component_manifest.md` to see what other components exist.
+**Before creating links to other components**:
+1. Read `planning/doc_tree.json` to see all valid file paths
+2. Read `planning/component_manifest.md` to see component display names
 
 **Valid cross-link format**: `[Component Name](../{component-id}/index.md)`
 
-Example:
-- Link to API Server: `[API Server](../api-server/index.md)`
-- Link to Scheduler: `[Scheduler](../scheduler/index.md)`
+Example (use actual component names from the manifest):
+- `[Component A](../component-a/index.md)`
+- `[Component B](../component-b/index.md)`
 
-**DO NOT** create links to components that aren't in the manifest - they will be dead links!
+**DO NOT** create links to components that aren't in doc_tree.json - they will be dead links!
 
 If you need to reference a component that isn't being documented, use plain text instead of a link.
 
@@ -88,9 +122,9 @@ If you need to reference a component that isn't being documented, use plain text
 When documenting a component, you MUST:
 
 1. **Enumerate Sub-Components**:
-   - List ALL individual controllers, plugins, handlers, etc.
-   - Don't just say "implements controllers" - list each controller by name
-   - Example: For controller-manager, document all 28 controllers individually
+   - List ALL individual controllers, plugins, handlers, etc. that exist in the code
+   - Don't just say "implements controllers" - list each one by its actual name
+   - Be specific about what you find in THIS repository
 
 2. **Provide Code Examples**:
    - Minimum 3 code examples per component
