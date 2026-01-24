@@ -128,6 +128,9 @@ class DocsPostProcessor:
         else:
             self.build_dir = self.docs_dir.parent / "build"
 
+        # Markdown goes to build/docs/, HTML goes to build/site/
+        # This avoids mkdocs error about site_dir being inside docs_dir
+        self.build_docs_dir = self.build_dir / "docs"
         self.html_output_dir = self.build_dir / "site"
 
         # Check for tools
@@ -136,13 +139,13 @@ class DocsPostProcessor:
 
         if not self.mmdc_path:
             logger.warning(
-                "mermaid-cli (mmdc) not found. "
+                "mermaid-cli (mmdc) not found - diagrams will NOT be rendered! "
                 "Install with: npm install -g @mermaid-js/mermaid-cli"
             )
 
         if not self.mkdocs_path:
             logger.warning(
-                "mkdocs not found. "
+                "mkdocs not found - HTML site will NOT be generated! "
                 "Install with: pip install mkdocs mkdocs-material"
             )
 
@@ -173,8 +176,8 @@ class DocsPostProcessor:
             logger.info(f"Copying docs to build directory: {self.build_dir}")
             self._copy_docs()
 
-            # Find all markdown files in build directory
-            md_files = list(self.build_dir.rglob("*.md"))
+            # Find all markdown files in build docs directory
+            md_files = list(self.build_docs_dir.rglob("*.md"))
             logger.info(f"Found {len(md_files)} markdown files")
 
             # Step 2: Process each file
@@ -213,12 +216,13 @@ class DocsPostProcessor:
 
     def _copy_docs(self) -> None:
         """Copy source docs to build directory."""
+        # Clean build directory
         if self.build_dir.exists():
             shutil.rmtree(self.build_dir)
 
-        # Copy entire docs directory
-        shutil.copytree(self.docs_dir, self.build_dir)
-        logger.info(f"  → Copied {self.docs_dir} to {self.build_dir}")
+        # Copy docs to build/docs/ (not build/ directly)
+        shutil.copytree(self.docs_dir, self.build_docs_dir)
+        logger.info(f"  → Copied {self.docs_dir} to {self.build_docs_dir}")
 
     def _process_file(self, md_file: Path) -> dict:
         """Process a single markdown file."""
@@ -415,12 +419,14 @@ class DocsPostProcessor:
     def _generate_html(self) -> bool:
         """Generate HTML site using mkdocs."""
         if not self.mkdocs_path:
+            logger.error("mkdocs not installed - cannot generate HTML site")
             return False
 
         # Create mkdocs config
+        # docs_dir = build/docs/, site_dir = build/site/ (must not be inside docs_dir)
         config_content = f"""
 site_name: Documentation
-docs_dir: "{self.build_dir}"
+docs_dir: "{self.build_docs_dir}"
 site_dir: "{self.html_output_dir}"
 use_directory_urls: false
 
@@ -453,21 +459,41 @@ markdown_extensions:
             # Ensure output dir exists
             self.html_output_dir.mkdir(parents=True, exist_ok=True)
 
+            logger.info(f"Running mkdocs build with config: {config_path}")
+            logger.info(f"  docs_dir: {self.build_docs_dir}")
+            logger.info(f"  site_dir: {self.html_output_dir}")
+
             result = subprocess.run(
                 [self.mkdocs_path, "build", "-f", str(config_path), "--clean"],
                 capture_output=True,
                 text=True,
-                timeout=120
+                timeout=120,
+                cwd=str(self.build_dir.parent)  # Run from parent of build dir
             )
 
             if result.returncode == 0:
-                return True
+                # Verify site was actually created
+                if self.html_output_dir.exists() and any(self.html_output_dir.iterdir()):
+                    logger.info(f"HTML site generated successfully: {self.html_output_dir}")
+                    return True
+                else:
+                    logger.error(f"mkdocs completed but site dir is empty: {self.html_output_dir}")
+                    return False
             else:
-                logger.error(f"mkdocs error: {result.stderr}")
+                logger.error(f"mkdocs build failed (exit code {result.returncode})")
+                if result.stdout:
+                    logger.error(f"  stdout: {result.stdout[:500]}")
+                if result.stderr:
+                    logger.error(f"  stderr: {result.stderr[:500]}")
                 return False
 
+        except subprocess.TimeoutExpired:
+            logger.error("mkdocs build timed out after 120 seconds")
+            return False
         except Exception as e:
             logger.error(f"HTML generation error: {e}")
+            import traceback
+            logger.debug(traceback.format_exc())
             return False
         finally:
             config_path.unlink(missing_ok=True)

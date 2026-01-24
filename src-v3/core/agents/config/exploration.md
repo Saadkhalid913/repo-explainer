@@ -69,6 +69,20 @@ When documenting components, use `index.md` as the standard entry point file nam
 
 This standardization ensures consistent navigation across all documentation.
 
+## Cross-Linking (IMPORTANT - Avoid Dead Links!)
+
+**Before creating links to other components**, read `planning/component_manifest.md` to see what other components exist.
+
+**Valid cross-link format**: `[Component Name](../{component-id}/index.md)`
+
+Example:
+- Link to API Server: `[API Server](../api-server/index.md)`
+- Link to Scheduler: `[Scheduler](../scheduler/index.md)`
+
+**DO NOT** create links to components that aren't in the manifest - they will be dead links!
+
+If you need to reference a component that isn't being documented, use plain text instead of a link.
+
 ## Documentation Depth Requirements
 
 When documenting a component, you MUST:

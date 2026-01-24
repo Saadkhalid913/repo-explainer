@@ -226,6 +226,25 @@ Use the Write tool, not bash echo commands.
         prompt = """Read the repository overview and allocate component exploration tasks.
 
 Your task:
+
+## STEP 1: Create Component Manifest (DO THIS FIRST!)
+
+Create `planning/component_manifest.md` with a table of ALL components you will document.
+This prevents dead links when components reference each other.
+
+Example:
+```markdown
+# Component Manifest
+
+| Component ID | Display Name | Output Path |
+|-------------|--------------|-------------|
+| api-server | API Server | docs/api-server/ |
+| scheduler | Scheduler | docs/scheduler/ |
+| controller-manager | Controller Manager | docs/controller-manager/ |
+```
+
+## STEP 2: Identify Components
+
 1. Read `planning/overview.md` to understand the repository structure
 2. Identify **8-15 major components** that should be explored in detail
    - For large projects like Kubernetes, identify ALL major subsystems:
@@ -237,38 +256,47 @@ Your task:
      - Security: auth, admission controllers
    - **DO NOT under-identify components!**
 
-3. Create `planning/task_allocation.md` with:
-   - YAML frontmatter with task count (should be 8-15)
-   - Task descriptions for each component
-   - Component paths, focus areas, and output locations
+## STEP 3: Create Task Allocation
 
-4. **CRITICAL**: Spawn parallel exploration subagents using the Task tool:
-   - Use the Task tool with subagent_type="exploration" for EACH component
-   - One subagent per component (8-15 subagents total!)
-   - **IMPORTANT**: Each outputs to `planning/docs/{component_name}/index.md`
-   - Specify that documentation should be DEEP (200+ lines, multiple files)
-   - Include mermaid diagrams that will be compiled to PNG later
-   - Example prompt for subagent:
-     ```
-     Explore the {component_name} component in {paths}.
+Create `planning/task_allocation.md` with:
+- YAML frontmatter with task count (should be 8-15)
+- Task descriptions for each component
+- Component paths, focus areas, and output locations
 
-     Create comprehensive documentation in planning/docs/{component_name}/
+## STEP 4: Spawn Subagents (CRITICAL!)
 
-     Files to create:
-     - index.md (main overview, 100+ lines)
-     - architecture.md (with mermaid diagrams)
-     - api_reference.md (if applicable)
-     - configuration.md (if applicable)
+Spawn parallel exploration subagents using the Task tool:
+- Use the Task tool with subagent_type="exploration" for EACH component
+- One subagent per component (8-15 subagents total!)
+- **IMPORTANT**: Each outputs to `planning/docs/{component_name}/index.md`
+- Tell each subagent to read `planning/component_manifest.md` for cross-linking
 
-     Include in each file:
-     - Enumerate ALL sub-components by name
-     - Code examples (minimum 3 per file)
-     - Mermaid diagrams using ```mermaid blocks
-     - Reference tables where applicable
-     - Links to source files
+Example prompt for subagent:
+```
+Explore the {component_name} component in {paths}.
 
-     Focus on: {focus_areas}
-     ```
+**FIRST**: Read `planning/component_manifest.md` to see all components being documented.
+Use this for cross-linking - only link to components in the manifest!
+
+Create comprehensive documentation in planning/docs/{component_name}/
+
+Files to create:
+- index.md (main overview, 100+ lines)
+- architecture.md (with mermaid diagrams)
+- api_reference.md (if applicable)
+- configuration.md (if applicable)
+
+Cross-link format: [Component Name](../{component-id}/index.md)
+
+Include in each file:
+- Enumerate ALL sub-components by name
+- Code examples (minimum 3 per file)
+- Mermaid diagrams using ```mermaid blocks
+- Reference tables where applicable
+- Links to source files
+
+Focus on: {focus_areas}
+```
 
 **File Naming Standard**: All component docs must use `index.md` as the main file.
 

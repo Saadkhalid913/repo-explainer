@@ -69,6 +69,28 @@ Read the repository overview and dynamically determine how to split exploration 
 
 ## Output Format
 
+**STEP 1: Create Component Manifest** (CRITICAL for avoiding dead links!)
+
+First, create `planning/component_manifest.md` listing ALL components that will be documented:
+
+```markdown
+# Component Manifest
+
+This file lists all components being documented. Use this for cross-linking.
+
+## Components
+
+| Component ID | Display Name | Path |
+|-------------|--------------|------|
+| api-server | API Server | docs/api-server/ |
+| scheduler | Scheduler | docs/scheduler/ |
+| controller-manager | Controller Manager | docs/controller-manager/ |
+| kubelet | Kubelet | docs/kubelet/ |
+...
+```
+
+**STEP 2: Create Task Allocation**
+
 Create `planning/task_allocation.md` with YAML frontmatter:
 
 ```yaml
