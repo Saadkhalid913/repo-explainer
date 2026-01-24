@@ -49,7 +49,7 @@ max_parallel: 10
 - **Paths**: `src/core/api/`, `src/core/routes/`
 - **Priority**: High
 - **Focus**: REST endpoints, authentication, data contracts
-- **Output**: `planning/docs/core_api/`
+- **Output**: `planning/docs/core_api/index.md`
 - **Description**: Analyze the main API layer including all REST endpoints, authentication mechanisms, and data validation
 
 ## Task 2: Explore Database Layer
@@ -57,23 +57,47 @@ max_parallel: 10
 - **Paths**: `src/database/`, `src/models/`
 - **Priority**: High
 - **Focus**: Schema design, migrations, ORM usage
-- **Output**: `planning/docs/database/`
+- **Output**: `planning/docs/database/index.md`
 - **Description**: Document database schema, migrations, and data access patterns
 ```
 
 ## Subagent Spawning
 
-After creating the task allocation file, spawn parallel exploration subagents:
+**CRITICAL**: After creating the task allocation file, you MUST spawn parallel exploration subagents:
 
-1. Use the Task tool with `subagent_type="Explore"` for each component
+1. Use the Task tool with `subagent_type="exploration"` for each component (lowercase!)
 2. Pass component-specific prompts including:
    - Component name and paths
    - Focus areas
-   - Output location
+   - **IMPORTANT**: Output location as `planning/docs/{component_name}/index.md`
+   - Depth requirements (200+ lines, 3+ examples, 2+ diagrams, 1+ table)
 3. Aim for 3-10 parallel tasks based on:
    - Repository complexity
    - Component count
    - Resource limits (max 10 parallel agents)
+
+**Example subagent prompt**:
+```
+Explore the {component_name} component located in {paths}.
+
+Create comprehensive documentation in planning/docs/{component_name}/index.md
+
+Requirements:
+- Enumerate ALL sub-components by name (don't generalize)
+- Include minimum 3 code examples
+- Include minimum 2 diagrams
+- Include minimum 1 reference table
+- Create multi-file structure if component is complex (10+ files)
+
+Focus areas:
+- {focus_area_1}
+- {focus_area_2}
+- {focus_area_3}
+```
+
+**File Naming Convention**: All component documentation must use `index.md` as the main file name, not `README.md` or `overview.md`. This ensures consistent navigation across all documentation.
+
+**IMPORTANT**: Don't just create the task allocation file and stop. You must ACTUALLY SPAWN the subagents using the Task tool. The task allocation file is just documentation - the real work happens when you spawn the subagents.
 
 ## Guidelines
 

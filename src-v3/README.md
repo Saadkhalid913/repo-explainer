@@ -25,7 +25,7 @@ V3 is a redesign focusing on clean agent wrappers for OpenCode and Claude Code C
 src-v3/
 ├── core/
 │   ├── models/
-│   │   └── skill.py            # Skill model and SkillName registry
+│   │   └── skill.py                  # Skill model and SkillName registry
 │   ├── agents/
 │   │   ├── config/
 │   │   │   ├── AGENTS.md
@@ -33,10 +33,10 @@ src-v3/
 │   │   ├── skills/
 │   │   │   ├── analyze_components.md
 │   │   │   └── generate_documentation.md
-│   │   ├── opencode_wrapper.py      # OpenCode CLI wrapper
-│   │   └── claude_code_wrapper.py   # Claude Code CLI wrapper
+│   │   └── opencode_wrapper.py       # OpenCode CLI wrapper
+│   ├── documentation_pipeline.py     # Multi-agent orchestration
 │   └── utils/
-│       └── clone_repo.py       # Repository cloning utilities
+│       └── clone_repo.py             # Repository cloning utilities
 ```
 
 ---
@@ -145,24 +145,6 @@ if response.success:
     print(f"Generated {len(response.artifacts)} artifacts")
     for name, content in response.artifacts.items():
         print(f"- {name}")
-```
-
-### 3. Claude Code Wrapper
-
-Identical API to OpenCode wrapper, but uses Claude Code CLI.
-
-```python
-from core.agents import create_claude_code_wrapper, OpencodeProjectConfig
-
-# Drop-in replacement for OpenCode
-wrapper = create_claude_code_wrapper(
-    working_dir=Path("./my-repo"),
-    model="claude-sonnet-4-5-20250929",
-    project_config=OpencodeProjectConfig.default(),
-)
-
-# Same API as OpenCode
-response = wrapper.execute(prompt="...")
 ```
 
 ---
@@ -290,26 +272,6 @@ if response.success:
     # wrapper.cleanup_artifacts()
 ```
 
-### Example 6: Switching Between OpenCode and Claude Code
-
-```python
-from pathlib import Path
-from core.agents import create_opencode_wrapper, create_claude_code_wrapper
-
-# Use OpenCode
-opencode = create_opencode_wrapper(working_dir=Path("."))
-response1 = opencode.execute("Analyze this repo")
-
-# Switch to Claude Code (same API!)
-claude_code = create_claude_code_wrapper(working_dir=Path("."))
-response2 = claude_code.execute("Analyze this repo")
-
-# Both have identical interfaces
-assert type(response1).__name__ in ["OpenCodeResponse", "ClaudeCodeResponse"]
-assert hasattr(response1, 'success')
-assert hasattr(response1, 'artifacts')
-```
-
 ---
 
 ## Configuration
@@ -435,23 +397,16 @@ Skills are copied into `.opencode/skills/<name>/SKILL.md` when the wrapper initi
 and all agent files are copied to `.opencode/agents/` alongside `AGENTS.md`. Supply a custom `OpencodeProjectConfig` to
 swap in different guidance files, agent subsets, or skill catalogs.
 
-### ClaudeCodeWrapper
-
-- Identical API to `OpenCodeWrapper` (same optional `project_config` parameter), just replace class names:
-- `ClaudeCodeWrapper` instead of `OpenCodeWrapper`
-- `ClaudeCodeConfig` instead of `OpenCodeConfig`
-- `ClaudeCodeResponse` instead of `OpenCodeResponse`
-
 ---
 
 ## Differences from V2
 
 | Aspect | V2 | V3 |
 |--------|----|----|
-| **Architecture** | Integrated agents in TUI | Standalone wrappers |
-| **Interface** | Interactive TUI | Programmatic API |
+| **Architecture** | Integrated agents in TUI | Multi-agent pipeline with wrappers |
+| **Interface** | Interactive TUI | Programmatic API + CLI |
 | **Skills** | Hard-coded prompts | Dynamic skill loading |
-| **CLI Tools** | OpenCode only | OpenCode + Claude Code |
+| **CLI Tools** | OpenCode only | OpenCode with multi-agent orchestration |
 | **Context** | Per-screen state | Per-wrapper instance |
 | **Reusability** | TUI-specific | Library-first |
 

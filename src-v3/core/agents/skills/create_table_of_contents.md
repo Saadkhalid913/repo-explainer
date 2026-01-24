@@ -76,6 +76,70 @@ Write `planning/documentation/toc.json`:
 }
 ```
 
+## Quality Verification
+
+Before creating TOC, verify component docs meet minimum standards:
+
+For each component, check:
+- [ ] Has index.md file (rename if needed)
+- [ ] Has minimum 100 lines of content
+- [ ] Has at least 1 diagram reference
+- [ ] Has at least 1 code block
+- [ ] Has at least 1 table
+
+If component docs are too shallow:
+- Log warning in TOC about shallow documentation
+- Still include in TOC but mark as "needs expansion"
+- Document which quality criteria are missing
+
+## Enhanced Output Format
+
+Create `planning/documentation/toc.json` with quality metadata:
+
+```json
+{
+  "repository": "Repository Name",
+  "sections": [
+    {
+      "name": "architecture",
+      "title": "Architecture Overview",
+      "description": "Core architectural patterns and design decisions",
+      "priority": 1,
+      "components": ["api_server", "controller_manager"],
+      "files": ["planning/docs/api_server/index.md", "planning/docs/controller_manager/index.md"],
+      "quality": {
+        "api_server": {
+          "depth": "deep",
+          "lines": 287,
+          "diagrams": 3,
+          "examples": 5,
+          "tables": 2,
+          "warnings": []
+        },
+        "controller_manager": {
+          "depth": "shallow",
+          "lines": 42,
+          "diagrams": 0,
+          "examples": 0,
+          "tables": 0,
+          "warnings": ["Missing controller enumeration", "No code examples", "No diagrams"]
+        }
+      }
+    }
+  ],
+  "metadata": {
+    "total_sections": 5,
+    "total_components": 12,
+    "generated_at": "2026-01-23",
+    "quality_summary": {
+      "deep_docs": 8,
+      "shallow_docs": 4,
+      "total_warnings": 12
+    }
+  }
+}
+```
+
 ## Guidelines
 
 - **Logical grouping**: Sections should reflect user mental models (architecture, API, components)
@@ -84,3 +148,5 @@ Write `planning/documentation/toc.json`:
 - **Clear titles**: Section titles should be self-explanatory
 - **Useful descriptions**: Section descriptions help readers navigate
 - **Balanced sections**: Aim for 3-8 sections with roughly equal content
+- **Quality tracking**: Include quality metrics for each component
+- **Warning visibility**: Make shallow documentation visible to users

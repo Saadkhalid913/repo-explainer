@@ -67,7 +67,8 @@ class OpencodeProjectConfig:
     _skills: Dict[str, Skill] = field(init=False, repr=False)
 
     # Output paths
-    AGENTS_DIR = Path(".opencode/agents")
+    # NOTE: OpenCode expects .opencode/agent/ (singular) not .opencode/agents/ (plural)!
+    AGENTS_DIR = Path(".opencode/agent")
     SKILLS_DIR = Path(".opencode/skills")
     COMMANDS_DIR = Path(".opencode/commands")
     GLOBAL_AGENTS_FILE = "AGENTS.md"
@@ -97,11 +98,10 @@ class OpencodeProjectConfig:
 
         Creates:
         - AGENTS.md (global context)
-        - .opencode/agents/ (enabled agent files copied directly)
+        - .opencode/agent/ (enabled agent files copied directly)
         - .opencode/skills/ (all skills)
         - .opencode/commands/ (bash commands, if configured)
         """
-
         # ensure working dir exists
         working_dir.mkdir(parents=True, exist_ok=True)
 
@@ -118,7 +118,7 @@ class OpencodeProjectConfig:
             target.write_text(source.read_text())
 
     def _write_agent_files(self, working_dir: Path) -> None:
-        """Write enabled agent files to .opencode/agents/."""
+        """Write enabled agent files to .opencode/agent/."""
         agents_dir = working_dir / self.AGENTS_DIR
         agents_dir.mkdir(parents=True, exist_ok=True)
 

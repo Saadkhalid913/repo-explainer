@@ -33,6 +33,11 @@ class SkillName(Enum):
     # Overview writer agent skills
     GENERATE_OVERVIEW_INDEX = "generate_overview_index.md"
 
+    # Deep documentation skills
+    DOCUMENT_DEEPLY = "document_deeply.md"
+    CREATE_COMPREHENSIVE_DIAGRAMS = "create_comprehensive_diagrams.md"
+    GENERATE_REFERENCE_TABLES = "generate_reference_tables.md"
+
     @property
     def source_path(self) -> Path:
         """Path to the skill definition file."""

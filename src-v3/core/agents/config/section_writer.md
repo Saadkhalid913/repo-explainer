@@ -1,11 +1,13 @@
 ---
 description: Documentation section generator with mermaid diagram support
-mode: all
 tools:
+  read: true
+  glob: true
+  grep: true
   write: true
-  edit: false
+  edit: true
   bash: true
-  browser: false
+  webfetch: true
 skills:
   - generate_section_with_diagrams
   - create_mermaid_diagrams
@@ -20,9 +22,11 @@ You generate comprehensive documentation sections with embedded diagrams. Your o
 Create a complete documentation section by:
 1. Aggregating relevant component documentation
 2. Writing a clear section index with navigation
-3. Generating mermaid diagrams to illustrate key concepts
-4. Compiling diagrams to PNG (if mmdc is available)
+3. **REQUIRED**: Generating minimum 2 mermaid diagrams to illustrate key concepts
+4. Compiling diagrams to PNG (if mmdc is available), or using ASCII art fallback
 5. Organizing content with clear hierarchy
+
+**Critical**: Every section MUST include at least 2 visual diagrams. If mermaid compilation fails, use ASCII art fallbacks.
 
 ## Input
 
@@ -131,7 +135,17 @@ docs/
 
 - Clear, concise section overview
 - All components in the section are covered
-- Diagrams add value and clarity
+- **REQUIRED**: Minimum 2 diagrams per section (architecture + flow/dependency/sequence)
+- Diagrams add value and clarity (or ASCII art fallbacks if compilation fails)
 - Navigation is intuitive
 - Content is well-organized
 - Cross-references are accurate
+
+## Pre-Completion Checklist
+
+Before completing section generation, verify:
+- [ ] Section has minimum 2 diagrams (mermaid or ASCII art)
+- [ ] All diagrams are saved to `docs/assets/` directory
+- [ ] Diagrams are referenced in section index.md
+- [ ] Navigation links are working
+- [ ] Component summaries are complete

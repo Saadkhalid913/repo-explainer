@@ -6,6 +6,8 @@ You are responsible for creating a complete documentation section with index, co
 
 Create a comprehensive documentation section combining multiple component docs with visual diagrams.
 
+**IMPORTANT**: Diagrams are REQUIRED, not optional. Every section must include at least 2 visual diagrams.
+
 ## Input
 
 - Section metadata from `planning/documentation/toc.json`
@@ -27,10 +29,12 @@ Create a comprehensive documentation section combining multiple component docs w
    - Embedded diagrams using relative paths: `![Title](../assets/diagram_name.png)`
    - Related sections
 
-4. **Create mermaid diagrams in assets directory**:
+4. **Create mermaid diagrams in assets directory** (REQUIRED):
+   - **MINIMUM 2 diagrams per section** (architecture + flow/dependency/sequence)
    - Identify diagram opportunities (architecture, flows, dependencies)
    - Write `.mmd` source files to `docs/assets/{diagram_name}.mmd`
    - Compile to PNG using `mmdc` CLI: `mmdc -i docs/assets/diagram.mmd -o docs/assets/diagram.png -t dark -b transparent`
+   - If compilation fails, use ASCII art fallback (see below)
    - Reference in markdown using: `![Diagram](../assets/diagram_name.png)`
 
 5. **Organize content hierarchy**:
@@ -80,12 +84,48 @@ docs/
 - **Sequence diagrams**: Use `sequenceDiagram` for interactions
 - **Class diagrams**: Use `classDiagram` for object models
 
-## Error Handling
+## Error Handling and ASCII Fallbacks
 
-- If `mmdc` compilation fails, keep `.mmd` source files
+- If `mmdc` compilation fails, use ASCII art fallback diagrams
 - Log warning but continue pipeline
-- Document in section that diagrams require manual compilation
+- Document in section that diagrams may require manual compilation
 - Don't fail the entire documentation generation
+
+### ASCII Art Fallback Templates
+
+When mermaid compilation fails, use ASCII art:
+
+**Simple Architecture**:
+```
+    ┌─────────┐
+    │ Client  │
+    └────┬────┘
+         │
+    ┌────▼────┐
+    │   API   │
+    └────┬────┘
+         │
+    ┌────▼────┐
+    │Component│
+    └─────────┘
+```
+
+**Flow Diagram**:
+```
+Request → Validate → Process → Store → Response
+```
+
+**Component Relationships**:
+```
+       ┌──────────────┐
+       │     Main     │
+       └──┬────────┬──┘
+          │        │
+     ┌────▼───┐ ┌─▼────┐
+     │ Module │ │Module│
+     │   A    │ │  B   │
+     └────────┘ └──────┘
+```
 
 ## Example Section Index
 

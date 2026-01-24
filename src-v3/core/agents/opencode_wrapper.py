@@ -15,8 +15,8 @@ from .project_config import OpencodeProjectConfig, AgentType
 class OpenCodeConfig(BaseConfig):
     """Configuration for OpenCode instance."""
 
-    model: str = "openrouter/anthropic/claude-sonnet-4-5-20250929"
-    """Model to use for code analysis (format: openrouter/{provider}/{model_id})"""
+    model: Optional[str] = None
+    """Model to use for code analysis. If None, uses OpenCode's default model."""
 
     output_format: OutputFormat = OutputFormat.JSON
     """Output format (json or text)"""
@@ -204,9 +204,15 @@ class OpenCodeWrapper(BaseWrapper):
         cmd = [
             self.config.binary_path,
             "run",  # OpenCode requires 'run' subcommand
-            "--model", self.config.model,  # Model flag before prompt
-            "--format", self.config.output_format.value,  # Use --format, not --output-format
         ]
+
+        # Add model if specified (otherwise use OpenCode default)
+        if self.config.model:
+            cmd.extend(["--model", self.config.model])
+
+        cmd.extend([
+            "--format", self.config.output_format.value,  # Use --format, not --output-format
+        ])
 
         # Add agent flag for OpenCode 2026 standard
         cmd.extend(["--agent", agent_type.value])
@@ -243,11 +249,12 @@ class OpenCodeWrapper(BaseWrapper):
         self.project_config.cleanup(self.working_dir)
 
     def __del__(self) -> None:
-        """Ensure temporary project config files are removed."""
-        try:
-            self.project_config.cleanup(self.working_dir)
-        except Exception:
-            pass
+        """Cleanup is intentionally disabled during normal execution.
+
+        The agent config files in .opencode/ need to persist during the
+        full pipeline run. Call cleanup_artifacts() explicitly if needed.
+        """
+        pass
 
     def __repr__(self) -> str:
         """String representation."""
@@ -261,7 +268,7 @@ class OpenCodeWrapper(BaseWrapper):
 
 def create_opencode_wrapper(
     working_dir: Path,
-    model: str = "openrouter/anthropic/claude-sonnet-4-5-20250929",
+    model: Optional[str] = None,
     project_config: Optional[OpencodeProjectConfig] = None,
     verbose: bool = False,
 ) -> OpenCodeWrapper:

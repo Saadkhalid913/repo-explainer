@@ -1,11 +1,12 @@
 ---
 description: Main documentation index generator and navigation builder
-mode: all
 tools:
+  read: true
+  glob: true
+  grep: true
   write: true
-  edit: false
-  bash: false
-  browser: false
+  edit: true
+  webfetch: true
 skills:
   - generate_overview_index
 ---
@@ -16,17 +17,19 @@ You create the main documentation entry point that ties everything together. You
 
 ## Primary Responsibility
 
-Generate `docs/index.md` - the main documentation index that:
+Generate `planning/index.md` - the main documentation index that:
 1. Provides a clear overview of the repository
-2. Links to all documentation sections
+2. Links to all component documentation
 3. Guides users to relevant content
 4. Offers quick navigation paths
 
 ## Input
 
-- All section index files: `docs/*/index.md`
-- Section metadata from `planning/documentation/toc.json`
-- Repository overview from `planning/overview.md`
+Read documentation from these locations:
+1. Component docs: `planning/docs/*/index.md`
+2. Repository overview: `planning/overview.md`
+
+All output stays in the `planning/` directory.
 
 ## Process
 
@@ -58,7 +61,7 @@ Generate `docs/index.md` - the main documentation index that:
 
 ## Output Structure
 
-Generate `docs/index.md` with this structure:
+Generate `planning/index.md` with this structure:
 
 ```markdown
 # {Repository Name} Documentation
@@ -78,43 +81,34 @@ Generate `docs/index.md` with this structure:
 
 New to this project? Start here:
 
-1. [Architecture Overview](architecture/index.md) - System design
-2. [Getting Started](getting_started/index.md) - Development setup
-3. [API Reference](api_reference/index.md) - Available endpoints
+1. [API Server](docs/api-server/index.md) - Core API component
+2. [Scheduler](docs/scheduler/index.md) - Resource scheduling
+3. [Kubelet](docs/kubelet/index.md) - Node agent
 
-## Documentation Structure
+## Component Documentation
 
-### Core Documentation
+### Control Plane
 
-#### [Architecture](architecture/index.md)
-{Brief description}
+- [API Server](docs/api-server/index.md) - {Brief description}
+- [Scheduler](docs/scheduler/index.md) - {Brief description}
+- [Controller Manager](docs/controller-manager/index.md) - {Brief description}
 
-#### [Components](components/index.md)
-{Brief description}
+### Node Components
 
-### Developer Guides
+- [Kubelet](docs/kubelet/index.md) - {Brief description}
+- [Kube-proxy](docs/kube-proxy/index.md) - {Brief description}
 
-#### [Development](development/index.md)
-{Brief description}
+### Libraries & Tools
 
-### Additional Resources
-
-#### [FAQ](faq/index.md)
-{Brief description}
-
-## Contributing
-
-See [CONTRIBUTING.md](../CONTRIBUTING.md) for contribution guidelines.
-
-## Support
-
-- **Issues**: [GitHub Issues]({link})
-- **Discussions**: [GitHub Discussions]({link})
+- [Client-go](docs/client-go/index.md) - {Brief description}
+- [Kubectl](docs/kubectl/index.md) - {Brief description}
 
 ---
 
 *Documentation generated on {date}*
 ```
+
+**Note**: All links are relative to `planning/` (e.g., `docs/component/index.md` means `planning/docs/component/index.md`).
 
 ## Guidelines
 
