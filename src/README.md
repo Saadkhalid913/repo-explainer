@@ -1,42 +1,42 @@
-# Repo Explainer V3 - Agent Wrapper Architecture
+# Repo Explainer - Multi-Agent Documentation System
 
-**Status:** In Development
-**Architecture:** Wrapper-based agent system with skill management
+**Status:** Production Ready
+**Architecture:** Multi-agent system for automated repository documentation
 
 ---
 
 ## Overview
 
-V3 is a redesign focusing on clean agent wrappers for OpenCode and Claude Code CLI tools, with a skill-based system for managing agent capabilities.
+A multi-agent documentation system that analyzes GitHub repositories and generates comprehensive documentation including markdown files and an HTML website.
 
 ### Key Features
 
-- **Unified Agent Interface**: Both OpenCode and Claude Code wrappers share the same API
-- **Skill Management**: Load, add, remove skills dynamically
-- **Context Management**: Maintain working directory and execution context
-- **Event Streaming**: Parse and handle real-time events from agents
-- **Artifact Handling**: Automatic extraction and management of generated artifacts
+- **Multi-Agent Pipeline**: Exploration, delegation, and documentation agents work in parallel
+- **Rich TUI**: Real-time progress display with split-panel layout
+- **Mermaid Diagrams**: Automatic rendering of architecture diagrams to PNG
+- **HTML Site Generation**: MkDocs-based website with search and navigation
+- **Cross-Linking**: Component manifest ensures no dead links between docs
 
 ---
 
 ## Architecture
 
 ```
-src-v3/
+src/
+├── document_repo.py              # Main TUI entry point
 ├── core/
+│   ├── tui.py                    # Rich terminal UI
+│   ├── documentation_pipeline.py # Multi-agent orchestration
+│   ├── docs_post_processor.py    # Mermaid rendering, HTML generation
 │   ├── models/
-│   │   └── skill.py                  # Skill model and SkillName registry
+│   │   └── skill.py              # Skill model and registry
 │   ├── agents/
-│   │   ├── config/
-│   │   │   ├── AGENTS.md
-│   │   │   └── .claude.md
-│   │   ├── skills/
-│   │   │   ├── analyze_components.md
-│   │   │   └── generate_documentation.md
-│   │   └── opencode_wrapper.py       # OpenCode CLI wrapper
-│   ├── documentation_pipeline.py     # Multi-agent orchestration
+│   │   ├── config/               # Agent configurations
+│   │   ├── skills/               # Skill definitions
+│   │   ├── opencode_wrapper.py   # OpenCode CLI wrapper
+│   │   └── project_config.py     # Project configuration
 │   └── utils/
-│       └── clone_repo.py             # Repository cloning utilities
+│       └── clone_repo.py         # Repository cloning
 ```
 
 ---

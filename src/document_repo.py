@@ -6,12 +6,13 @@ A terminal user interface for documenting GitHub repositories using the multi-ag
 documentation system powered by OpenCode.
 
 Usage:
-    python src-v3/document_repo.py
-    python src-v3/document_repo.py https://github.com/owner/repo
-    python src-v3/document_repo.py https://github.com/owner/repo --model sonnet
+    python src/document_repo.py
+    python src/document_repo.py https://github.com/owner/repo
+    python src/document_repo.py https://github.com/owner/repo --model sonnet
 """
 
 import argparse
+import shutil
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -24,6 +25,50 @@ from core.tui import RichTUI, print_completion_summary, prompt_for_url
 from core.utils.clone_repo import clone_repo, is_github_url
 
 
+def copy_output_to_dist(
+    repo_name: str,
+    build_docs_dir: Path,
+    html_site_dir: Path,
+    tui: RichTUI,
+) -> Path:
+    """
+    Copy final documentation to dist/ folder in current working directory.
+
+    Args:
+        repo_name: Name of the repository (used for folder naming)
+        build_docs_dir: Path to processed markdown docs (build/docs/)
+        html_site_dir: Path to HTML site (build/site/)
+        tui: TUI instance for logging progress
+
+    Returns:
+        Path to the dist folder
+    """
+    # Create dist folder in current working directory
+    dist_dir = Path.cwd() / "dist" / repo_name
+    dist_docs = dist_dir / "markdown"
+    dist_site = dist_dir / "site"
+
+    tui.log_message("DIST", f"Copying output to {dist_dir}", "cyan", "bold cyan")
+
+    # Clean existing dist for this repo
+    if dist_dir.exists():
+        shutil.rmtree(dist_dir)
+
+    dist_dir.mkdir(parents=True, exist_ok=True)
+
+    # Copy markdown docs
+    if build_docs_dir and build_docs_dir.exists():
+        shutil.copytree(build_docs_dir, dist_docs)
+        tui.log_message("DIST", f"Markdown docs: {dist_docs}", "green", "bold green")
+
+    # Copy HTML site
+    if html_site_dir and html_site_dir.exists():
+        shutil.copytree(html_site_dir, dist_site)
+        tui.log_message("DIST", f"HTML site: {dist_site}", "green", "bold green")
+
+    return dist_dir
+
+
 def main():
     """Main entry point for repository documentation TUI."""
     console = Console()
@@ -34,10 +79,10 @@ def main():
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
 Examples:
-  python src-v3/document_repo.py
-  python src-v3/document_repo.py https://github.com/owner/repo
-  python src-v3/document_repo.py https://github.com/owner/repo --model sonnet
-  python src-v3/document_repo.py https://github.com/owner/repo --verbose
+  python src/document_repo.py
+  python src/document_repo.py https://github.com/owner/repo
+  python src/document_repo.py https://github.com/owner/repo --model sonnet
+  python src/document_repo.py https://github.com/owner/repo --verbose
         """,
     )
 
@@ -174,11 +219,24 @@ Examples:
         tui.log_message("RUN", "Starting documentation...", "cyan", "bold cyan")
         result = pipeline.run()
 
-        # Show post-processing results
+        # Show post-processing results and copy to dist/
+        dist_dir = None
         if result and "steps" in result:
             post_process = result["steps"].get("post_process")
             if post_process:
                 tui.log_post_process(post_process)
+
+                # Copy output to dist/ folder in current working directory
+                build_docs = post_process.get("build_dir")
+                html_site = post_process.get("html_output_dir")
+                if build_docs or html_site:
+                    dist_dir = copy_output_to_dist(
+                        repo_name=repo_name,
+                        build_docs_dir=Path(build_docs) / "docs" if build_docs else None,
+                        html_site_dir=Path(html_site) if html_site else None,
+                        tui=tui,
+                    )
+                    result["output_paths"]["dist"] = str(dist_dir)
 
         # Show completion in TUI
         tui.show_completion(result)

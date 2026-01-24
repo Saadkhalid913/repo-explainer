@@ -634,8 +634,20 @@ def print_completion_summary(
     console.print("[bold cyan]" + "=" * 80 + "[/bold cyan]")
     console.print()
 
+    # Output location (dist folder)
+    dist_path = None
+    if pipeline_result and "output_paths" in pipeline_result:
+        dist_path = pipeline_result["output_paths"].get("dist")
+
+    if dist_path:
+        console.print("[bold]Output Location:[/bold]")
+        console.print(f"  [bold green]{dist_path}[/bold green]")
+        console.print(f"    markdown/  - Processed markdown documentation")
+        console.print(f"    site/      - HTML website (serve with python -m http.server)")
+        console.print()
+
     # Repository info
-    console.print("[bold]Repository:[/bold]")
+    console.print("[bold]Source Repository:[/bold]")
     console.print(f"  URL:   {repo_url}")
     console.print(f"  Clone: {repo_path}")
     console.print()
