@@ -69,6 +69,7 @@ class ProcessingResult:
     diagrams_rendered: int = 0
     diagrams_failed: int = 0
     github_links_fixed: int = 0
+    internal_links_fixed: int = 0  # Broken internal links converted to plain text
     markdown_issues_fixed: int = 0
     doc_tree_errors: int = 0  # Validation errors against doc_tree.json
 
@@ -82,7 +83,8 @@ class ProcessingResult:
         return (
             f"Processed {self.files_processed} files: "
             f"{self.diagrams_rendered}/{self.diagrams_found} diagrams rendered, "
-            f"{self.github_links_fixed} GitHub links fixed"
+            f"{self.github_links_fixed} GitHub links fixed, "
+            f"{self.internal_links_fixed} broken internal links fixed"
         )
 
 
@@ -232,6 +234,7 @@ class DocsPostProcessor:
                     result.diagrams_rendered += file_result.get('diagrams_rendered', 0)
                     result.diagrams_failed += file_result.get('diagrams_failed', 0)
                     result.github_links_fixed += file_result.get('links_fixed', 0)
+                    result.internal_links_fixed += file_result.get('internal_links_fixed', 0)
                     result.markdown_issues_fixed += file_result.get('markdown_fixed', 0)
                 except Exception as e:
                     logger.error(f"Error processing {md_file}: {e}")
@@ -355,6 +358,7 @@ class DocsPostProcessor:
             'diagrams_rendered': 0,
             'diagrams_failed': 0,
             'links_fixed': 0,
+            'internal_links_fixed': 0,
             'markdown_fixed': 0
         }
 
@@ -372,7 +376,13 @@ class DocsPostProcessor:
             if links_fixed > 0:
                 logger.debug(f"  Fixed {links_fixed} GitHub links in {md_file.name}")
 
-        # Step 3: Find and render ALL mermaid diagrams
+        # Step 3: Fix broken internal links (links to components that weren't documented)
+        content, internal_fixed = self._fix_broken_internal_links(content, md_file)
+        stats['internal_links_fixed'] = internal_fixed
+        if internal_fixed > 0:
+            logger.debug(f"  Fixed {internal_fixed} broken internal links in {md_file.name}")
+
+        # Step 4: Find and render ALL mermaid diagrams
         all_matches = []
         for pattern in self.MERMAID_PATTERNS:
             matches = list(pattern.finditer(content))
@@ -488,6 +498,51 @@ class DocsPostProcessor:
             return match.group(0)
 
         fixed_content = self.GITHUB_LINK_PATTERN.sub(replace_link, content)
+        return fixed_content, fixed_count
+
+    def _fix_broken_internal_links(self, content: str, file_path: Path) -> Tuple[str, int]:
+        """
+        Find internal markdown links and convert broken ones to plain text.
+
+        [Link Text](../component/file.md) → Link Text (if target doesn't exist)
+
+        This handles the case where documentation was generated with cross-links
+        to components that were never successfully documented.
+
+        Args:
+            content: The markdown content to process
+            file_path: Path to the current file (for resolving relative links)
+
+        Returns:
+            Tuple of (fixed content, number of links fixed)
+        """
+        # Match markdown links: [text](path)
+        # Exclude external links (http/https) and anchors (#)
+        INTERNAL_LINK_PATTERN = re.compile(
+            r'\[([^\]]+)\]\((?!https?://|#)([^)]+\.md(?:#[^)]*)?)\)'
+        )
+
+        fixed_count = 0
+
+        def check_and_fix(match):
+            nonlocal fixed_count
+            link_text = match.group(1)
+            link_path = match.group(2)
+
+            # Remove anchor from path for file existence check
+            path_without_anchor = link_path.split('#')[0]
+
+            # Resolve relative path from current file's directory
+            target = (file_path.parent / path_without_anchor).resolve()
+
+            if not target.exists():
+                fixed_count += 1
+                # Convert to plain text - just the link text
+                return link_text
+
+            return match.group(0)  # Keep original if target exists
+
+        fixed_content = INTERNAL_LINK_PATTERN.sub(check_and_fix, content)
         return fixed_content, fixed_count
 
     def _sanitize_mermaid(self, code: str) -> str:
@@ -1380,6 +1435,7 @@ if __name__ == "__main__":
         print(f"Files processed:    {result.files_processed}")
         print(f"Diagrams rendered:  {result.diagrams_rendered}/{result.diagrams_found}")
         print(f"GitHub links fixed: {result.github_links_fixed}")
+        print(f"Internal links fixed: {result.internal_links_fixed}")
         print(f"Markdown fixes:     {result.markdown_issues_fixed}")
 
         if result.validation_errors:

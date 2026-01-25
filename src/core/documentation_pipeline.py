@@ -101,6 +101,11 @@ class DocumentationPipeline:
                     stream_callback=self.stream_callback
                 )
 
+                # Log response status for debugging
+                if not response.success:
+                    self._log(f"  Agent returned error: {response.error}")
+                    logger.warning(f"Agent error: {response.error}")
+
                 # Check expected files exist
                 missing = [f for f in expected_files if not f.exists()]
                 if not missing:
@@ -425,30 +430,60 @@ Write the JSON to `planning/doc_tree.json` using the Write tool.
 
 Your task:
 
-## STEP 1: Create Component Manifest (DO THIS FIRST!)
+## STEP 0: DISCOVER ACTUAL FILES (CRITICAL - DO THIS FIRST!)
 
-Create `planning/component_manifest.md` with a table of ALL components you will document.
-This prevents dead links when components reference each other.
+Before creating any manifest, you MUST discover what files actually exist:
 
-Example format (use actual components from THIS repository):
+1. Run `ls -la` to see top-level files and directories
+2. Run `ls -la src/` (if src/ exists) to see source files
+3. Note the ACTUAL file names you see
+
+**ONLY use file paths you have verified exist!**
+**DO NOT invent or guess file paths!**
+
+### MANDATORY EXCLUSIONS - DO NOT DOCUMENT THESE:
+
+- `planning/` - This is the pipeline's output directory, NOT source code!
+- `.git/` - Git metadata, never document this
+- `node_modules/`, `vendor/`, `venv/`, `.venv/` - Dependencies
+- `dist/`, `build/`, `out/`, `target/` - Build outputs
+- Lock files: `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `bun.lock`, `Gemfile.lock`, `poetry.lock`, `Cargo.lock`
+- `.env*` files - Environment configuration
+- `.DS_Store`, `*.log`, `*.tmp` - System/temp files
+- `.opencode/`, `.claude/` - Tool configuration
+
+**If you see `planning/` in the directory listing, IGNORE IT COMPLETELY.**
+
+## STEP 1: Create Component Manifest
+
+After discovering actual files, create `planning/component_manifest.md` with:
+- ONLY components based on files you VERIFIED exist
+- Use the EXACT file paths you discovered in Step 0
+
+Example format (use actual paths from THIS repository):
 ```markdown
 # Component Manifest
 
-| Component ID | Display Name | Output Path |
-|-------------|--------------|-------------|
-| component-a | Component A | docs/component-a/ |
-| component-b | Component B | docs/component-b/ |
-| component-c | Component C | docs/component-c/ |
+| Component ID | Display Name | Path | Output Path |
+|-------------|--------------|------|-------------|
+| component-a | Component A | src/actual_file.ts | planning/docs/component-a/index.md |
 ```
 
 ## STEP 2: Identify Components
 
-1. Read `planning/overview.md` to understand the repository structure
-2. Identify the major components **that actually exist in THIS repository**
-   - Base the count on repository size: 3-5 for small repos, 8-15 for large repos
-   - Look at the actual directory structure and code organization
-   - **ONLY document components that exist in the repo you are analyzing**
-   - **DO NOT use example components from other projects!**
+1. Read `planning/overview.md` for context
+2. Based on the ACTUAL **SOURCE** files you discovered in Step 0:
+   - Group related files into components
+   - Name components based on their functionality
+   - Base count on repo size: 3-5 for small repos, 5-10 for medium repos
+   - **ONLY include files that ACTUALLY EXIST!**
+   - **SKIP all excluded items from Step 0 (planning/, .git/, lock files, etc.)**
+
+Focus on actual source code and meaningful configuration, NOT:
+- Lock files (pnpm-lock.yaml, package-lock.json, etc.)
+- Git metadata (.git/)
+- Pipeline output (planning/)
+- IDE/editor configs (.vscode/, .idea/)
 
 ## STEP 3: Create Task Allocation
 
@@ -558,10 +593,15 @@ task allocation file - actually spawn the Task tool calls to create the subagent
                 if stable_iterations % 3 == 0:
                     self._log(f"[{elapsed}s] Waiting... ({current_count}/{expected_count})")
 
-            # EARLY EXIT: No activity for 60s but have some output
-            if stable_iterations >= 6 and current_count >= 1:
-                self._log(f"[{elapsed}s] No activity for 60s, proceeding with {current_count} components")
+            # EARLY EXIT: No activity for 90s AND have at least 50% of expected components
+            min_completion = max(1, expected_count // 2)  # At least 50% or 1
+            if stable_iterations >= 9 and current_count >= min_completion:
+                self._log(f"[{elapsed}s] No activity for 90s, proceeding with {current_count}/{expected_count} components ({current_count * 100 // expected_count}%)")
                 return {"success": True, "components": current_count, "partial": True}
+
+            # STUCK: No activity for 90s but less than 50% - log once and keep waiting
+            if stable_iterations == 9 and current_count < min_completion:
+                self._log(f"[{elapsed}s] Only {current_count}/{expected_count} components ({current_count * 100 // expected_count}%), need {min_completion}+ to proceed. Waiting...")
 
             time.sleep(poll_interval)
 

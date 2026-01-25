@@ -139,6 +139,24 @@ Output documentation to: {output_path}
 """
 ```
 
+## MANDATORY EXCLUSIONS - NEVER DOCUMENT THESE
+
+When identifying components, **completely skip** these directories and files:
+
+**Directories to skip:**
+- `planning/` - This is the documentation pipeline's output directory, NOT source code!
+- `.git/` - Git metadata
+- `node_modules/`, `vendor/`, `venv/`, `.venv/`, `__pycache__/` - Dependencies
+- `dist/`, `build/`, `out/`, `target/`, `.next/` - Build outputs
+- `.opencode/`, `.claude/`, `.cursor/` - Tool configuration
+
+**Files to skip:**
+- Lock files: `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `bun.lock`, `Gemfile.lock`, `poetry.lock`, `Cargo.lock`, `go.sum`
+- `.env*` files - Environment configuration
+- `.DS_Store`, `*.log`, `*.tmp` - System/temp files
+
+**If you see `planning/` in the directory listing, IGNORE IT - it's the pipeline output, not source code!**
+
 ## Guidelines
 
 - **Analyze first**: Read the actual repository structure before identifying components
@@ -146,6 +164,7 @@ Output documentation to: {output_path}
 - **Balanced allocation**: Distribute work evenly across parallel tasks
 - **Clear boundaries**: Each component should have distinct responsibilities
 - **No assumptions**: Don't assume components exist - verify they do
+- **Skip excluded items**: Never create components for planning/, .git/, lock files, etc.
 
 ## Quality Criteria
 

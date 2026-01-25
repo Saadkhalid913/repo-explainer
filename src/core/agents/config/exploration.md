@@ -43,6 +43,24 @@ These can return thousands of files and overflow the context window.
 - `{specific_dir}/*` - specific component directory
 - Use `ls -la` for quick directory listing
 
+## MANDATORY EXCLUSIONS - NEVER DOCUMENT THESE
+
+When exploring a repository, **completely ignore** these directories and files:
+
+**Directories to skip:**
+- `planning/` - This is the documentation pipeline's output directory, NOT source code!
+- `.git/` - Git metadata
+- `node_modules/`, `vendor/`, `venv/`, `.venv/`, `__pycache__/` - Dependencies
+- `dist/`, `build/`, `out/`, `target/`, `.next/` - Build outputs
+- `.opencode/`, `.claude/`, `.cursor/` - Tool configuration
+
+**Files to skip:**
+- Lock files: `package-lock.json`, `pnpm-lock.yaml`, `yarn.lock`, `bun.lock`, `Gemfile.lock`, `poetry.lock`, `Cargo.lock`, `go.sum`
+- `.env*` files - Environment configuration (security risk)
+- `.DS_Store`, `*.log`, `*.tmp`, `Thumbs.db` - System/temp files
+
+**If you see `planning/` in the directory listing, IGNORE IT - it's the pipeline output, not source code!**
+
 ## Focus Areas
 
 - Map services, entry points, and their data contracts.
@@ -59,8 +77,8 @@ These can return thousands of files and overflow the context window.
 
 When documenting components, use `index.md` as the standard entry point file name:
 
-- **Main component file**: Always create `index.md` (NOT `README.md` or `overview.md`)
-- **Output location**: `planning/docs/{component_name}/index.md`
+- **Component docs**: Create `index.md` for each component in `planning/docs/{component_name}/`
+- **Repository overview**: Create `planning/overview.md` when asked (Step 1 of pipeline)
 - **Multi-file structure**: For complex components, create additional files like:
   - `architecture.md` - Architecture details and diagrams
   - `api_reference.md` - API/interface documentation
