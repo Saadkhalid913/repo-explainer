@@ -767,3 +767,56 @@ def _build_completion_tree(tree: Tree, path: Path, depth: int = 0):
             _build_completion_tree(branch, item, depth + 1)
         else:
             tree.add(f"[green]{item.name}[/green]")
+
+
+def print_server_info(docs_url: str, download_url: str, repo_name: str = "docs"):
+    """Print server information with styled links."""
+    console = Console()
+
+    console.print()
+    console.print("[bold cyan]" + "=" * 60 + "[/bold cyan]")
+    console.print("[bold green]  Documentation Server Running[/bold green]")
+    console.print("[bold cyan]" + "=" * 60 + "[/bold cyan]")
+    console.print()
+
+    # Create a table for the links
+    table = Table(show_header=False, box=None, padding=(0, 2))
+    table.add_column("Label", style="bold")
+    table.add_column("URL", style="cyan underline")
+
+    table.add_row("View Docs:", docs_url)
+    table.add_row("Download Zip:", download_url)
+
+    console.print(table)
+    console.print()
+    console.print("[dim]Press Ctrl+C to stop the server and exit[/dim]")
+    console.print()
+
+
+def wait_for_shutdown(server, console: Optional[Console] = None):
+    """Wait for Ctrl+C and gracefully shutdown the server."""
+    if console is None:
+        console = Console()
+
+    try:
+        # Keep the main thread alive
+        import signal
+        shutdown_event = __import__('threading').Event()
+
+        def signal_handler(signum, frame):
+            shutdown_event.set()
+
+        signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
+
+        # Wait for shutdown signal
+        shutdown_event.wait()
+
+    except KeyboardInterrupt:
+        pass
+    finally:
+        console.print()
+        console.print("[yellow]Shutting down server...[/yellow]")
+        server.stop()
+        console.print("[green]Server stopped. Goodbye![/green]")
+        console.print()

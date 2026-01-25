@@ -21,7 +21,14 @@ from rich.console import Console
 
 from core.agents import AgentType
 from core.documentation_pipeline import DocumentationPipeline
-from core.tui import RichTUI, print_completion_summary, prompt_for_url
+from core.docs_server import create_docs_server
+from core.tui import (
+    RichTUI,
+    print_completion_summary,
+    print_server_info,
+    prompt_for_url,
+    wait_for_shutdown,
+)
 from core.utils.clone_repo import clone_repo, is_github_url
 
 
@@ -121,6 +128,19 @@ Examples:
         "--verbose",
         action="store_true",
         help="Enable verbose logging (shows all events)",
+    )
+
+    parser.add_argument(
+        "--no-serve",
+        action="store_true",
+        help="Don't start the HTTP server after documentation is generated",
+    )
+
+    parser.add_argument(
+        "--port",
+        type=int,
+        default=8080,
+        help="Port for the documentation server (default: 8080)",
     )
 
     args = parser.parse_args()
@@ -270,6 +290,38 @@ Examples:
                 stats=tui.stats,
                 pipeline_result=result,
             )
+
+            # Start documentation server if we have output and --no-serve not set
+            dist_path = result.get("output_paths", {}).get("dist")
+            if dist_path and Path(dist_path).exists() and not args.no_serve:
+                try:
+                    server = create_docs_server(
+                        build_dir=Path(dist_path),
+                        repo_name=repo_name,
+                        port=args.port,
+                    )
+                    server.start()
+
+                    # Show server info
+                    print_server_info(
+                        docs_url=server.get_docs_url(),
+                        download_url=server.get_download_url(),
+                        repo_name=repo_name,
+                    )
+
+                    # Wait for user to stop the server
+                    wait_for_shutdown(server, console)
+
+                except Exception as e:
+                    console.print(f"[yellow]Could not start server: {e}[/yellow]")
+                    console.print("[dim]You can manually serve the docs with:[/dim]")
+                    console.print(f"[dim]  cd {dist_path}/site && python3 -m http.server {args.port}[/dim]")
+                    console.print()
+            elif dist_path and Path(dist_path).exists() and args.no_serve:
+                console.print()
+                console.print("[dim]To serve the docs manually:[/dim]")
+                console.print(f"[dim]  cd {dist_path}/site && python3 -m http.server {args.port}[/dim]")
+                console.print()
         else:
             # Interrupted or error
             console.print()
