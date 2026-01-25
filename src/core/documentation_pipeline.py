@@ -426,17 +426,20 @@ Write the JSON to `planning/doc_tree.json` using the Write tool.
         Returns:
             dict: Step execution result
         """
-        prompt = """Read the repository overview and allocate component exploration tasks.
+        prompt = """EXECUTE IMMEDIATELY. DO NOT ASK QUESTIONS. DO NOT EXPLAIN. JUST ACT.
+
+You must complete ALL of these steps in order, using tools to execute each one:
 
 Your task:
 
-## STEP 0: DISCOVER ACTUAL FILES (CRITICAL - DO THIS FIRST!)
+## STEP 0: DISCOVER ACTUAL FILES (DO THIS FIRST - USE BASH TOOL NOW!)
 
-Before creating any manifest, you MUST discover what files actually exist:
+Run these commands using the Bash tool RIGHT NOW:
 
 1. Run `ls -la` to see top-level files and directories
-2. Run `ls -la src/` (if src/ exists) to see source files
-3. Note the ACTUAL file names you see
+2. Run `ls -la packages/` or `ls -la src/` (if they exist) to see source files
+
+DO NOT ASK which directories to explore. Just run the commands and see what exists.
 
 **ONLY use file paths you have verified exist!**
 **DO NOT invent or guess file paths!**

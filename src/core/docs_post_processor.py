@@ -365,6 +365,9 @@ class DocsPostProcessor:
         content = md_file.read_text(encoding='utf-8')
         original_content = content
 
+        # Step 0: Unescape backticks (AI sometimes escapes them as \`)
+        content = content.replace('\\`', '`')
+
         # Step 1: Fix markdown issues (stray backticks, etc.)
         content, markdown_fixes = self._fix_markdown_issues(content)
         stats['markdown_fixed'] = markdown_fixes
